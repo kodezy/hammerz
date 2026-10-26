@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
 from app.api.auth import router as auth_router
+from app.api.auctions import router as auctions_router
 from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
 from app.core.config import get_settings
