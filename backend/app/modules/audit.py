@@ -1,10 +1,11 @@
+import json
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.canon import event_mac, secret_key_id
+from app.core.canon import dumps as canon_dumps, event_mac, secret_key_id
 from app.core.config import get_settings
 from app.db.tables import Event
 from app.modules.alias import display_alias
@@ -58,6 +59,10 @@ def sign_event(payload: dict[str, Any], prev_hash: str) -> str:
     )
 
 
+def json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return json.loads(canon_dumps(payload))
+
+
 def persist_event(
     session: Session,
     *,
@@ -76,7 +81,7 @@ def persist_event(
         type=event_type,
         operation_id=operation_id,
         bid_id=bid_id,
-        payload=payload,
+        payload=json_safe_payload(payload),
         prev_hash=prev_hash,
         event_hash=event_hash,
     )

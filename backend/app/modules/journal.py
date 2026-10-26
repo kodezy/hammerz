@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from app.core.canon import SCHEMA_VERSION, journal_mac, secret_key_id
+from app.core.canon import SCHEMA_VERSION, dumps as canon_dumps, journal_mac, secret_key_id
 from app.core.errors import AppError, ErrorCode
 
 GENESIS_PREV = "0" * 64
@@ -246,7 +246,7 @@ class Journal:
 
     def _append_line(self, line: dict[str, Any]) -> None:
         with open(self.journal_path, "a", encoding="utf-8") as handle:
-            handle.write(json.dumps(line, separators=(",", ":")))
+            handle.write(canon_dumps(line).decode("utf-8"))
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
