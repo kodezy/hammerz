@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
     application = FastAPI(title="Hammerz", lifespan=lifespan)
     application.include_router(health_router)
     application.include_router(auth_router)
+    application.include_router(catalog_router)
 
     @application.middleware("http")
     async def request_id_middleware(request: Request, call_next):
