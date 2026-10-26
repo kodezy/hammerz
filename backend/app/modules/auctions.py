@@ -28,7 +28,7 @@ def derive_display_status(auction: Auction, now: datetime) -> str:
     if now < auction.starts_at:
         return "SCHEDULED"
     if now >= auction.ends_at:
-        return "ENDED"
+        return "FINALIZING"
     return "LIVE"
 
 
@@ -222,13 +222,13 @@ def list_auctions(
             counts["scheduled"] += 1
         elif ds == "LIVE":
             counts["live"] += 1
-        elif ds in ("ENDED", "CLOSED"):
+        elif ds in ("FINALIZING", "CLOSED"):
             counts["ended"] += 1
         if status_filter == "SCHEDULED" and ds != "SCHEDULED":
             continue
         if status_filter == "LIVE" and ds != "LIVE":
             continue
-        if status_filter == "ENDED" and ds not in ("ENDED", "CLOSED"):
+        if status_filter == "ENDED" and ds not in ("FINALIZING", "CLOSED"):
             continue
         snapshots.append(snap)
 
