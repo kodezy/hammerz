@@ -104,5 +104,11 @@ def bidder_token(db_session: Session) -> str:
     return issue_token(user.id, user.role)
 
 
+@pytest.fixture
+def bidder2_token(db_session: Session) -> str:
+    user = asyncio.run(provision(db_session, "bidder2@hammerz.test", "Bidder2-Eval-2026!", "BIDDER"))
+    return issue_token(user.id, user.role)
+
+
 def auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
