@@ -1,16 +1,46 @@
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, select
 
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
+from app.core.config import get_settings
 from app.core.errors import AppError, ErrorBody, ErrorCode
+from app.db.session import get_session_factory
+from app.db.tables import Auction
+from app.modules.journal import Journal
+
+
+def _build_journal() -> Journal:
+    settings = get_settings()
+    journal = Journal(
+        settings.audit_dir,
+        settings.hmac_secret.encode(),
+        settings.deployment_id,
+    )
+    db_has = False
+    try:
+        with get_session_factory()() as session:
+            has_auctions = session.scalar(select(func.count()).select_from(Auction)) or 0
+            db_has = has_auctions > 0
+    except Exception:
+        db_has = False
+    journal.open(db_has_auctions=db_has)
+    return journal
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    application.state.journal = _build_journal()
+    yield
 
 
 def create_app() -> FastAPI:
-    application = FastAPI(title="Hammerz")
+    application = FastAPI(title="Hammerz", lifespan=lifespan)
     application.include_router(health_router)
     application.include_router(auth_router)
 
