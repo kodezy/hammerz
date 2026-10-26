@@ -1,21 +1,33 @@
+import asyncio
+import contextlib
 import uuid
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
-from app.api.auth import router as auth_router
 from app.api.auctions import router as auctions_router
-from app.api.wallet import router as wallet_router
+from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
+from app.api.receipts import router as receipts_router
+from app.api.seller import router as seller_router
+from app.api.wallet import router as wallet_router
+from app.api.wins import router as wins_router
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorBody, ErrorCode
+from app.core.limits import limiter
 from app.db.session import get_session_factory
 from app.db.tables import Auction
 from app.modules.journal import Journal
+from app.modules.settle import close_due_auctions
+from app.realtime.hub import Hub
+
+_ws_connections: dict[str, int] = {}
+_WS_CAP = 20
 
 
 def _build_journal() -> Journal:
@@ -36,10 +48,26 @@ def _build_journal() -> Journal:
     return journal
 
 
+async def _settle_loop(application: FastAPI) -> None:
+    settings = get_settings()
+    while True:
+        try:
+            await close_due_auctions(application.state.journal, application.state.hub)
+        except Exception:
+            pass
+        await asyncio.sleep(settings.settle_interval_seconds)
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     application.state.journal = _build_journal()
+    application.state.hub = Hub()
+    await close_due_auctions(application.state.journal, application.state.hub)
+    settler = asyncio.create_task(_settle_loop(application))
     yield
+    settler.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await settler
 
 
 def create_app() -> FastAPI:
@@ -49,6 +77,9 @@ def create_app() -> FastAPI:
     application.include_router(catalog_router)
     application.include_router(auctions_router)
     application.include_router(wallet_router)
+    application.include_router(wins_router)
+    application.include_router(receipts_router)
+    application.include_router(seller_router)
 
     @application.middleware("http")
     async def request_id_middleware(request: Request, call_next):
@@ -56,6 +87,42 @@ def create_app() -> FastAPI:
         response = await call_next(request)
         response.headers["X-Request-Id"] = request.state.request_id
         return response
+
+    @application.websocket("/ws/auctions/{auction_id}")
+    async def auction_ws(websocket: WebSocket, auction_id: uuid.UUID):
+        settings = get_settings()
+        origin = websocket.headers.get("origin")
+        allowed = {urlparse(o).netloc for o in settings.cors_origins}
+        if origin:
+            if urlparse(origin).netloc not in allowed:
+                await websocket.accept()
+                await websocket.send_json(
+                    {"type": "ws.error", "code": "WS_ORIGIN"},
+                )
+                await websocket.close()
+                return
+        client_host = websocket.client.host if websocket.client else "unknown"
+        if not limiter.allow(f"ws:{client_host}", _WS_CAP):
+            await websocket.accept()
+            await websocket.send_json({"type": "ws.error", "code": "WS_LIMIT"})
+            await websocket.close()
+            return
+        with get_session_factory()() as session:
+            auction = session.get(Auction, auction_id)
+            if auction is None:
+                await websocket.accept()
+                await websocket.send_json({"type": "ws.error", "code": "WS_NOT_FOUND"})
+                await websocket.close()
+                return
+        hub: Hub = application.state.hub
+        await hub.join(str(auction_id), websocket)
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            pass
+        finally:
+            await hub.leave(str(auction_id), websocket)
 
     @application.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError):

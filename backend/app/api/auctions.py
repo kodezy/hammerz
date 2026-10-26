@@ -6,11 +6,15 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_seller
+from app.api.deps import parse_idempotency_key, require_bidder, require_seller
+from app.core.canon import request_fingerprint
 from app.core.money import MoneyCents
 from app.db.session import get_db
 from app.db.tables import User
 from app.modules import auctions as auctions_module
+from app.modules import audit as audit_module
+from app.modules import bids as bids_module
+from app.modules import cancel as cancel_module
 from app.modules.journal import Journal
 
 router = APIRouter(prefix="/api/v1/auctions", tags=["auctions"])
@@ -70,3 +74,127 @@ def get_auction_route(
     session: Session = Depends(get_db),
 ) -> dict:
     return auctions_module.get_auction(session, auction_id)
+
+
+class PlaceBidBody(BaseModel):
+    amount_cents: MoneyCents = Field(gt=0)
+
+
+class CancelBody(BaseModel):
+    reason: str | None = None
+
+
+@router.post("/{auction_id}/bids")
+async def place_bid_route(
+    auction_id: uuid.UUID,
+    body: PlaceBidBody,
+    request: Request,
+    idempotency_key: uuid.UUID = Depends(parse_idempotency_key),
+    bidder: User = Depends(require_bidder),
+    session: Session = Depends(get_db),
+    journal: Journal = Depends(get_journal),
+) -> dict:
+    path = f"/api/v1/auctions/{auction_id}/bids"
+    fingerprint = request_fingerprint(
+        request.method,
+        path,
+        {"amount_cents": body.amount_cents},
+    )
+    result = await bids_module.place_bid(
+        session,
+        journal,
+        bidder.id,
+        auction_id,
+        int(body.amount_cents),
+        idempotency_key,
+        fingerprint,
+    )
+    hub = request.app.state.hub
+    snap = auctions_module.get_auction(session, auction_id)
+    await hub.publish(
+        str(auction_id),
+        {
+            "auction_id": str(auction_id),
+            "bid": result.response,
+            "server_time": snap["server_time"],
+            "snapshot": snap,
+            "type": "bid.accepted",
+            "version": snap["version"],
+        },
+    )
+    return result.response
+
+
+@router.post("/{auction_id}/cancel")
+async def cancel_auction_route(
+    auction_id: uuid.UUID,
+    body: CancelBody,
+    request: Request,
+    idempotency_key: uuid.UUID = Depends(parse_idempotency_key),
+    seller: User = Depends(require_seller),
+    session: Session = Depends(get_db),
+    journal: Journal = Depends(get_journal),
+) -> dict:
+    path = f"/api/v1/auctions/{auction_id}/cancel"
+    fingerprint = request_fingerprint(request.method, path, body.model_dump())
+    auction = await cancel_module.cancel_auction(
+        session,
+        journal,
+        seller.id,
+        auction_id,
+        body.reason,
+        idempotency_key,
+        fingerprint,
+    )
+    hub = request.app.state.hub
+    snap = auctions_module.get_auction(session, auction_id)
+    await hub.publish(
+        str(auction_id),
+        {
+            "auction_id": str(auction_id),
+            "server_time": snap["server_time"],
+            "snapshot": snap,
+            "type": "auction.cancelled",
+            "version": snap["version"],
+        },
+    )
+    return auctions_module.get_auction(session, auction.id)
+
+
+@router.get("/{auction_id}/bids")
+def list_bids_route(
+    auction_id: uuid.UUID,
+    before_sequence: int | None = Query(None, ge=1),
+    after_sequence: int | None = Query(None, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_db),
+    journal: Journal = Depends(get_journal),
+) -> dict:
+    return bids_module.list_bids(
+        session,
+        journal,
+        auction_id,
+        before_sequence=before_sequence,
+        after_sequence=after_sequence,
+        limit=limit,
+    )
+
+
+@router.get("/{auction_id}/audit")
+def audit_route(
+    auction_id: uuid.UUID,
+    before_sequence: int | None = Query(None, ge=1),
+    after_sequence: int | None = Query(None, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_db),
+    journal: Journal = Depends(get_journal),
+) -> dict:
+    summary = audit_module.verify_auction(session, journal, auction_id)
+    events = audit_module.list_audit_events(
+        session,
+        auction_id,
+        before_sequence=before_sequence,
+        after_sequence=after_sequence,
+        limit=limit,
+    )
+    return {**events, "verification": summary}
