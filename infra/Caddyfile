@@ -1,0 +1,19 @@
+:80 {
+	@api path /api/*
+	@ws path /ws/*
+	@health path /health/*
+
+	handle @api {
+		reverse_proxy backend:8000
+	}
+	handle @ws {
+		reverse_proxy backend:8000
+	}
+	handle @health {
+		reverse_proxy backend:8000
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+	}
+}

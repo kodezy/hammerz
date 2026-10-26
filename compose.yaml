@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hammerz
+      POSTGRES_PASSWORD: hammerz
+      POSTGRES_DB: hammerz
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hammerz -d hammerz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://hammerz:hammerz@postgres:5432/hammerz
+      AUDIT_DIR: /var/lib/hammerz/audit
+    volumes:
+      - audit_data:/var/lib/hammerz/audit
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/web.Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  audit_data:
+  caddy_data:
+  caddy_config:
