@@ -18,6 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "ruff",
     "respx",
 ]
@@ -35,7 +36,11 @@ seed-evaluation = "app.modules.seed:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
+ignore = ["B008", "BLE001", "TRY203", "SIM103", "S110", "SIM102"]

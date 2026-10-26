@@ -5,7 +5,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.canon import dumps as canon_dumps, event_mac, secret_key_id
+from app.core.canon import dumps as canon_dumps
+from app.core.canon import event_mac, secret_key_id
 from app.core.config import get_settings
 from app.db.tables import Event
 from app.modules.alias import display_alias

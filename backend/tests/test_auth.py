@@ -1,3 +1,4 @@
+import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
@@ -7,10 +8,11 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.core.errors import ErrorCode
 from app.db.tables import Wallet
-from app.main import app
+from app.main import create_app
 
 
 def _unique_email(prefix: str = "user") -> str:
@@ -66,11 +68,14 @@ def test_register_duplicate_email_conflict(client):
 
 
 @pytest.mark.usefixtures("engine")
-def test_concurrent_register_same_email_one_conflict():
+def test_concurrent_register_same_email_one_conflict(tmp_path):
     email = _unique_email("concurrent")
+    audit_dir = str(tmp_path / "audit")
 
     def attempt() -> int:
-        with TestClient(app) as c:
+        os.environ["AUDIT_DIR"] = audit_dir
+        get_settings.cache_clear()
+        with TestClient(create_app()) as c:
             return c.post(
                 "/api/v1/auth/register",
                 json={"email": email, "password": "password1"},
@@ -83,6 +88,7 @@ def test_concurrent_register_same_email_one_conflict():
             statuses.append(fut.result())
 
     assert sorted(statuses) == [201, 409]
+    get_settings.cache_clear()
 
 
 @pytest.mark.usefixtures("engine")

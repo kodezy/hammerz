@@ -23,8 +23,9 @@ def test_ready_503_when_journal_blocked(tmp_path, monkeypatch):
     journal.open()
     assert journal.blocked
 
-    from app.main import create_app
     from fastapi.testclient import TestClient
+
+    from app.main import create_app
 
     monkeypatch.setenv("AUDIT_DIR", str(audit_dir))
     get_settings.cache_clear()

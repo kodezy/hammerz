@@ -45,7 +45,7 @@ def run_alembic() -> None:
     alembic_ini = os.path.join(os.getcwd(), "alembic.ini")
     if not os.path.isfile(alembic_ini):
         return
-    subprocess.run(["alembic", "-c", alembic.ini, "upgrade", "head"], check=True)
+    subprocess.run(["alembic", "-c", alembic_ini, "upgrade", "head"], check=True)
 
 
 def main() -> None:

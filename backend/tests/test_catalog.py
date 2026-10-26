@@ -1,5 +1,4 @@
 import httpx
-import pytest
 
 from tests.conftest import auth_headers
 
@@ -43,11 +42,14 @@ def test_bidder_forbidden(client, bidder_token):
 
 
 def test_met_timeout_503(client, seller_token, respx_mock):
+    from app.modules import catalog as catalog_module
+
+    catalog_module._cache.clear()
     respx_mock.get(
         "https://collectionapi.metmuseum.org/public/collection/v1.1/search"
     ).mock(side_effect=httpx.TimeoutException("timeout"))
     r = client.get(
-        "/api/v1/catalog/search?q=wheat",
+        "/api/v1/catalog/search?q=timeout-only",
         headers=auth_headers(seller_token),
     )
     assert r.status_code == 503

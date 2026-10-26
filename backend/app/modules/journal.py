@@ -7,7 +7,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from app.core.canon import SCHEMA_VERSION, dumps as canon_dumps, journal_mac, secret_key_id
+from app.core.canon import SCHEMA_VERSION, journal_mac, secret_key_id
+from app.core.canon import dumps as canon_dumps
 from app.core.errors import AppError, ErrorCode
 
 GENESIS_PREV = "0" * 64

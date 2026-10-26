@@ -27,7 +27,11 @@ async def register(session: Session, email: str, password: str) -> User:
         role="BIDDER",
     )
     session.add(user)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        raise AppError(409, ErrorCode.EMAIL_TAKEN, "Email already registered") from exc
     session.add(Wallet(user_id=user.id))
     try:
         session.commit()
@@ -71,7 +75,11 @@ async def provision(session: Session, email: str, password: str, role: str) -> U
         role=role,
     )
     session.add(user)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        raise AppError(409, ErrorCode.EMAIL_TAKEN, "Email already registered") from exc
     session.add(Wallet(user_id=user.id))
     try:
         session.commit()

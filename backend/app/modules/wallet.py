@@ -3,7 +3,6 @@ import uuid
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.core.canon import request_fingerprint
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorCode
 from app.core.limits import limiter
