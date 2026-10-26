@@ -51,7 +51,8 @@ def test_journal_failure_before_prepare_no_bid_row(
     def fail_prepare(*_args, **_kwargs):
         raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "Audit journal unavailable")
 
-    with patch("app.modules.bids.Journal.append_prepare", side_effect=fail_prepare):
+    journal = client.app.state.journal
+    with patch.object(journal, "append_prepare", side_effect=fail_prepare):
         r = _bid(client, bidder_token, aid, 10_000)
     assert r.status_code == 503
     assert r.json()["code"] == "AUDIT_UNAVAILABLE"

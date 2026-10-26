@@ -97,15 +97,6 @@ def bids_and_wins(
 
 
 @router.get("/auctions/{auction_id}/status")
-def auction_status(
-    auction_id: uuid.UUID,
-    user: User = Depends(require_bidder),
-    session: Session = Depends(get_db),
-) -> dict:
-    return participant_position(session, user.id, auction_id)
-
-
-@router.get("/auctions/{auction_id}/status")
 def auction_participant_status(
     auction_id: uuid.UUID,
     user: User = Depends(require_bidder),

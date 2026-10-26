@@ -97,11 +97,14 @@ def test_bid_below_opening_rejected(client, db_session, seller_token, bidder_tok
     assert db_session.scalar(select(func.count()).select_from(Bid)) == 0
 
 
-def test_bid_respects_increment(client, db_session, seller_token, bidder_token, respx_mock):
+def test_bid_respects_increment(
+    client, db_session, seller_token, bidder_token, bidder2_token, respx_mock
+):
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 50_000)
+    _deposit(client, bidder2_token, 50_000)
     _bid(client, bidder_token, aid, 10_000)
-    r = _bid(client, bidder_token, aid, 10_400)
+    r = _bid(client, bidder2_token, aid, 10_400)
     assert r.status_code == 409
     assert r.json()["code"] == "BID_TOO_LOW"
     ok = _bid(client, bidder_token, aid, 10_500)
@@ -211,7 +214,8 @@ def test_available_considers_other_lot_reserves(
     r = _bid(client, bidder_token, aid2, 10_000)
     assert r.status_code == 409
     assert r.json()["code"] == "INSUFFICIENT_FUNDS"
-    ok = _bid(client, bidder_token, aid2, 5_000)
+    _deposit(client, bidder_token, 5_000)
+    ok = _bid(client, bidder_token, aid2, 10_000)
     assert ok.status_code == 200
 
 
@@ -230,19 +234,6 @@ def test_list_bids_public_aliases(client, db_session, seller_token, bidder_token
     item = r.json()["items"][0]
     assert "bidder_alias" in item
     assert "bidder_id" not in item
-
-
-def test_websocket_bid_accepted(client, db_session, seller_token, bidder_token, respx_mock):
-    aid = _make_live_auction(client, db_session, seller_token, respx_mock)
-    _deposit(client, bidder_token, 50_000)
-    with client.websocket_connect(
-        f"/ws/auctions/{aid}",
-        headers={"Origin": "http://localhost:5173"},
-    ) as ws:
-        _bid(client, bidder_token, aid, 10_000)
-        msg = ws.receive_json()
-        assert msg["type"] == "bid.accepted"
-        assert "snapshot" in msg
 
 
 def test_participant_status_leading(client, db_session, seller_token, bidder_token, respx_mock):

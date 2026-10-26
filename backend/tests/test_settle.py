@@ -1,9 +1,11 @@
+import asyncio
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import httpx
-import pytest
+from sqlalchemy import func, select
 
-from tests.conftest import auth_headers
+from app.db.tables import Auction
 
 
 def _mock_met(respx_mock):
@@ -21,12 +23,12 @@ def _mock_met(respx_mock):
     )
 
 
-@pytest.mark.asyncio
-async def test_close_without_bids(db_session, tmp_path, monkeypatch, respx_mock, seller_token):
+def test_close_without_bids(db_session, tmp_path, monkeypatch, respx_mock):
     monkeypatch.setenv("AUDIT_DIR", str(tmp_path / "audit"))
     from app.core.config import get_settings
     from app.modules import auctions as auctions_module
     from app.modules import settle as settle_module
+    from app.modules.auth import provision
     from app.modules.journal import Journal
 
     get_settings.cache_clear()
@@ -34,15 +36,11 @@ async def test_close_without_bids(db_session, tmp_path, monkeypatch, respx_mock,
     journal = Journal(settings.audit_dir, settings.hmac_secret.encode(), settings.deployment_id)
     journal.open(db_has_auctions=False)
     _mock_met(respx_mock)
-    import asyncio
-
-    from app.modules.auth import provision
-
     seller = asyncio.run(
         provision(db_session, "settle-seller@test.com", "password123!", "SELLER")
     )
-    starts = datetime.now(UTC) - timedelta(hours=1)
-    ends = datetime.now(UTC) - timedelta(seconds=1)
+    starts = datetime.now(UTC) + timedelta(hours=1)
+    ends = starts + timedelta(hours=2)
     auction = asyncio.run(
         auctions_module.create_auction(
             db_session,
@@ -55,25 +53,22 @@ async def test_close_without_bids(db_session, tmp_path, monkeypatch, respx_mock,
             ends,
         )
     )
-    await settle_module.close_one(db_session, journal, auction.id)
+    now = db_session.scalar(select(func.clock_timestamp()))
+    auction.starts_at = now - timedelta(seconds=5)
+    auction.ends_at = now - timedelta(seconds=1)
+    db_session.flush()
+    asyncio.run(settle_module.close_one(db_session, journal, auction.id))
     db_session.refresh(auction)
     assert auction.status == "CLOSED"
 
 
-def test_finalizing_display(client, seller_token, respx_mock):
-    _mock_met(respx_mock)
-    starts = datetime.now(UTC) - timedelta(seconds=1)
-    ends = datetime.now(UTC) - timedelta(seconds=1)
-    lot = client.post(
-        "/api/v1/auctions",
-        headers=auth_headers(seller_token),
-        json={
-            "external_id": "436535",
-            "opening_bid_cents": 10_000,
-            "minimum_increment_cents": 500,
-            "starts_at": starts.isoformat().replace("+00:00", "Z"),
-            "ends_at": ends.isoformat().replace("+00:00", "Z"),
-        },
-    ).json()
-    r = client.get(f"/api/v1/auctions/{lot['id']}")
+def test_finalizing_display(client, db_session, seller_token, respx_mock):
+    from tests.test_bids import _make_live_auction
+
+    aid = _make_live_auction(client, db_session, seller_token, respx_mock)
+    auction = db_session.get(Auction, uuid.UUID(aid))
+    now = db_session.scalar(select(func.clock_timestamp()))
+    auction.ends_at = now - timedelta(seconds=1)
+    db_session.flush()
+    r = client.get(f"/api/v1/auctions/{aid}")
     assert r.json()["display_status"] == "FINALIZING"
