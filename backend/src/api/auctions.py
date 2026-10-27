@@ -6,16 +6,16 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_optional_user, parse_idempotency_key, require_bidder, require_seller
-from app.core.canon import request_fingerprint
-from app.core.money import MoneyCents
-from app.db.session import get_db
-from app.db.tables import User
-from app.modules import auctions as auctions_module
-from app.modules import audit as audit_module
-from app.modules import bids as bids_module
-from app.modules import cancel as cancel_module
-from app.modules.journal import Journal
+from src.api.deps import get_optional_user, parse_idempotency_key, require_bidder, require_seller
+from src.core.canon import request_fingerprint
+from src.core.money import MoneyCents
+from src.db.session import get_db
+from src.db.tables import User
+from src.modules import auctions as auctions_module
+from src.modules import audit as audit_module
+from src.modules import bids as bids_module
+from src.modules import cancel as cancel_module
+from src.modules.journal import Journal
 
 router = APIRouter(prefix="/api/v1/auctions", tags=["auctions"])
 
@@ -42,7 +42,7 @@ async def create_auction_route(
     try:
         object_id = int(body.external_id)
     except ValueError as exc:
-        from app.core.errors import AppError, ErrorCode
+        from src.core.errors import AppError, ErrorCode
 
         raise AppError(422, ErrorCode.VALIDATION_ERROR, "Invalid external_id") from exc
     auction = await auctions_module.create_auction(
@@ -74,7 +74,7 @@ def get_auction_route(
     session: Session = Depends(get_db),
     viewer: User | None = Depends(get_optional_user),
 ) -> dict:
-    from app.db.tables import Auction
+    from src.db.tables import Auction
 
     snap = auctions_module.get_auction(session, auction_id)
     if viewer is not None and viewer.role == "SELLER":
@@ -207,7 +207,7 @@ def audit_route(
     )
     from sqlalchemy import func, select
 
-    from app.db.tables import Bid
+    from src.db.tables import Bid
 
     bid_count = session.scalar(
         select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id)

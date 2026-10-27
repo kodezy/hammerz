@@ -8,7 +8,7 @@ Map for coding agents. Prefer matching nearby files over new layers. Details liv
 
 - Architecture: `docs/architecture.md`
 - Product onboarding: `README.md`
-- Backend: `backend/app/` (`api/`, `modules/`, `core/`, `db/`)
+- Backend: `backend/src/` (`api/`, `modules/`, `core/`, `db/`)
 - Frontend: `frontend/src/` (`app/`, `pages/`, `features/`, `components/`, `lib/`)
 - Edge: `infra/Caddyfile`, `compose.yaml`
 
@@ -60,9 +60,9 @@ Enforced by CI: `ruff check` and `pytest` (backend); `npm run build` (tsc + Vite
 
 ## Context routing
 
-When changing module boundaries, lock order, journal, or money: read `docs/architecture.md` and the owning file under `backend/app/modules/`.
+When changing module boundaries, lock order, journal, or money: read `docs/architecture.md` and the owning file under `backend/src/modules/`.
 
-When changing HTTP contracts: `backend/app/api/` plus the matching `frontend/src/features/` client.
+When changing HTTP contracts: `backend/src/api/` plus the matching `frontend/src/features/` client.
 
 When changing UI: match `frontend/src/pages/` and `frontend/src/components/` already on the route; tokens in `frontend/src/styles.css`.
 

@@ -11,10 +11,10 @@ def test_ready_ok_when_journal_open(client):
 
 
 def test_ready_503_when_journal_blocked(tmp_path, monkeypatch):
-    from app.core.config import get_settings
-    from app.modules.journal import Journal
+    from src.core.config import get_settings
+    from src.modules.journal import Journal
 
-    monkeypatch.setattr("app.api.health.check_database", lambda: True)
+    monkeypatch.setattr("src.api.health.check_database", lambda: True)
     audit_dir = tmp_path / "broken"
     audit_dir.mkdir()
     (audit_dir / "journal.jsonl").write_text("{not valid json\n", encoding="utf-8")
@@ -25,7 +25,7 @@ def test_ready_503_when_journal_blocked(tmp_path, monkeypatch):
 
     from fastapi.testclient import TestClient
 
-    from app.main import create_app
+    from src.main import create_app
 
     monkeypatch.setenv("AUDIT_DIR", str(audit_dir))
     get_settings.cache_clear()

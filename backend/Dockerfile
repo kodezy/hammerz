@@ -10,4 +10,4 @@ RUN uv pip install --system --no-cache -e ".[dev]"
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "-m", "app.boot"]
+CMD ["python", "-m", "src.boot"]

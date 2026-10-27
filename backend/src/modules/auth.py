@@ -4,9 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, ErrorCode
-from app.core.security import hash_password, issue_token, normalize_email, verify_password
-from app.db.tables import User, Wallet
+from src.core.errors import AppError, ErrorCode
+from src.core.security import hash_password, issue_token, normalize_email, verify_password
+from src.db.tables import User, Wallet
 
 
 def _validate_password(password: str) -> None:
@@ -51,7 +51,7 @@ async def login(session: Session, email: str, password: str) -> str:
 
 
 def current_user(session: Session, token: str) -> User:
-    from app.core.security import decode_token
+    from src.core.security import decode_token
 
     try:
         payload = decode_token(token)

@@ -7,7 +7,7 @@ Hammerz is a simulated live-auction platform: USD wallets, Met catalog lots, con
 ```
 compose.yaml          Caddy (web) → FastAPI (backend) → PostgreSQL 16
 infra/Caddyfile       SPA + reverse_proxy /api /ws /health
-backend/app/
+backend/src/
   main.py             app factory, WS /ws/auctions/{id}, settle loop
   boot.py             wait for Postgres, alembic upgrade, uvicorn --workers 1
   api/                HTTP routers under /api/v1

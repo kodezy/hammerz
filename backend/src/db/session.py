@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.config import Settings, get_settings
+from src.core.config import Settings, get_settings
 
 _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None

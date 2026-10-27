@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_seller
-from app.db.session import get_db
-from app.db.tables import Auction, Item, Ledger, User, Wallet
-from app.modules import auctions as auctions_module
+from src.api.deps import require_seller
+from src.db.session import get_db
+from src.db.tables import Auction, Item, Ledger, User, Wallet
+from src.modules import auctions as auctions_module
 
 router = APIRouter(prefix="/api/v1/seller", tags=["seller"])
 

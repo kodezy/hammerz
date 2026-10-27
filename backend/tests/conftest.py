@@ -21,12 +21,12 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.config import get_settings
-from app.core.limits import limiter
-from app.core.security import issue_token
-from app.db.session import get_db
-from app.main import create_app
-from app.modules.auth import provision
+from src.core.config import get_settings
+from src.core.limits import limiter
+from src.core.security import issue_token
+from src.db.session import get_db
+from src.main import create_app
+from src.modules.auth import provision
 
 
 @pytest.fixture(autouse=True)

@@ -14,14 +14,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    from app.db.tables import Base
+    from src.db.tables import Base
 
     bind = op.get_bind()
     Base.metadata.create_all(bind)
 
 
 def downgrade() -> None:
-    from app.db.tables import Base
+    from src.db.tables import Base
 
     bind = op.get_bind()
     Base.metadata.drop_all(bind)

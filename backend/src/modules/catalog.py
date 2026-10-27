@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from app.core.errors import AppError, ErrorCode
+from src.core.errors import AppError, ErrorCode
 
 MET_SEARCH = "https://collectionapi.metmuseum.org/public/collection/v1.1/search"
 MET_OBJECT = "https://collectionapi.metmuseum.org/public/collection/v1/objects/{object_id}"

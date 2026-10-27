@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import require_seller
-from app.db.tables import User
-from app.modules.catalog import search_catalog
+from src.api.deps import require_seller
+from src.db.tables import User
+from src.modules.catalog import search_catalog
 
 router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
 

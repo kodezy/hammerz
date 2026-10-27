@@ -5,12 +5,12 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import client_ip, get_current_user
-from app.core.errors import AppError, ErrorCode
-from app.core.limits import limiter
-from app.db.session import get_db
-from app.db.tables import User
-from app.modules import auth as auth_module
+from src.api.deps import client_ip, get_current_user
+from src.core.errors import AppError, ErrorCode
+from src.core.limits import limiter
+from src.db.session import get_db
+from src.db.tables import User
+from src.modules import auth as auth_module
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 

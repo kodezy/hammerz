@@ -3,8 +3,8 @@ import uuid
 
 import pytest
 
-from app.core.errors import AppError, ErrorCode
-from app.modules.journal import Journal
+from src.core.errors import AppError, ErrorCode
+from src.modules.journal import Journal
 
 
 def test_prepare_fsync_then_commit(tmp_path):

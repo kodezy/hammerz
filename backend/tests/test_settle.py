@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from sqlalchemy import func, select
 
-from app.db.tables import Auction
+from src.db.tables import Auction
 
 
 def _mock_met(respx_mock):
@@ -25,11 +25,11 @@ def _mock_met(respx_mock):
 
 def test_close_without_bids(db_session, tmp_path, monkeypatch, respx_mock):
     monkeypatch.setenv("AUDIT_DIR", str(tmp_path / "audit"))
-    from app.core.config import get_settings
-    from app.modules import auctions as auctions_module
-    from app.modules import settle as settle_module
-    from app.modules.auth import provision
-    from app.modules.journal import Journal
+    from src.core.config import get_settings
+    from src.modules import auctions as auctions_module
+    from src.modules import settle as settle_module
+    from src.modules.auth import provision
+    from src.modules.journal import Journal
 
     get_settings.cache_clear()
     settings = get_settings()

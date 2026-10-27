@@ -9,22 +9,22 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
-from app.api.auctions import router as auctions_router
-from app.api.auth import router as auth_router
-from app.api.catalog import router as catalog_router
-from app.api.health import router as health_router
-from app.api.receipts import router as receipts_router
-from app.api.seller import router as seller_router
-from app.api.wallet import router as wallet_router
-from app.api.wins import router as wins_router
-from app.core.config import get_settings, parse_cors_origins
-from app.core.errors import AppError, ErrorBody, ErrorCode
-from app.core.limits import limiter
-from app.db.session import get_session_factory
-from app.db.tables import Auction
-from app.modules.journal import Journal
-from app.modules.settle import close_due_auctions
-from app.realtime.hub import Hub
+from src.api.auctions import router as auctions_router
+from src.api.auth import router as auth_router
+from src.api.catalog import router as catalog_router
+from src.api.health import router as health_router
+from src.api.receipts import router as receipts_router
+from src.api.seller import router as seller_router
+from src.api.wallet import router as wallet_router
+from src.api.wins import router as wins_router
+from src.core.config import get_settings, parse_cors_origins
+from src.core.errors import AppError, ErrorBody, ErrorCode
+from src.core.limits import limiter
+from src.db.session import get_session_factory
+from src.db.tables import Auction
+from src.modules.journal import Journal
+from src.modules.settle import close_due_auctions
+from src.realtime.hub import Hub
 
 _ws_connections: dict[str, int] = {}
 _WS_CAP = 20

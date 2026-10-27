@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from sqlalchemy import func, select
 
-from app.db.tables import Auction, Bid, Ledger
+from src.db.tables import Auction, Bid, Ledger
 from tests.conftest import auth_headers
 
 

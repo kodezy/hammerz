@@ -7,7 +7,7 @@ import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-from app.core.config import get_settings
+from src.core.config import get_settings
 
 _ph = PasswordHasher()
 JWT_ALG = "HS256"

@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import uuid
 
-from app.core.config import get_settings
+from src.core.config import get_settings
 
 
 def display_alias(auction_id: uuid.UUID, user_id: uuid.UUID, role: str) -> str:

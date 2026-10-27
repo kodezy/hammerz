@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import parse_idempotency_key, require_bidder
-from app.core.canon import request_fingerprint
-from app.core.money import MoneyCents
-from app.db.session import get_db
-from app.db.tables import User
-from app.modules import wallet as wallet_module
+from src.api.deps import parse_idempotency_key, require_bidder
+from src.core.canon import request_fingerprint
+from src.core.money import MoneyCents
+from src.db.session import get_db
+from src.db.tables import User
+from src.modules import wallet as wallet_module
 
 router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
 

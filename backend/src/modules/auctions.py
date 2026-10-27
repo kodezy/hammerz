@@ -5,13 +5,13 @@ from typing import Any, Literal
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
-from app.core.errors import AppError, ErrorCode
-from app.db.tables import Auction, Bid, Deal, Item, Slip, User
-from app.modules import audit as audit_module
-from app.modules.alias import display_alias
-from app.modules.catalog import fetch_object
-from app.modules.journal import Journal
+from src.core.config import get_settings
+from src.core.errors import AppError, ErrorCode
+from src.db.tables import Auction, Bid, Deal, Item, Slip, User
+from src.modules import audit as audit_module
+from src.modules.alias import display_alias
+from src.modules.catalog import fetch_object
+from src.modules.journal import Journal
 
 DisplayFilter = Literal["LIVE", "SCHEDULED", "ENDED"]
 

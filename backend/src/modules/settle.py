@@ -6,12 +6,12 @@ from typing import Any
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
-from app.db.session import get_session_factory
-from app.db.tables import Auction, Bid, Deal, Event, Item, Ledger, Slip, User, Wallet
-from app.modules import audit as audit_module
-from app.modules.alias import display_alias
-from app.modules.journal import Journal
+from src.core.config import get_settings
+from src.db.session import get_session_factory
+from src.db.tables import Auction, Bid, Deal, Event, Item, Ledger, Slip, User, Wallet
+from src.modules import audit as audit_module
+from src.modules.alias import display_alias
+from src.modules.journal import Journal
 
 
 def _db_now(session: Session) -> datetime:
@@ -232,7 +232,7 @@ async def close_one(
             session.commit()
             await asyncio.to_thread(journal.append_commit, operation_id)
             if hub is not None:
-                from app.modules import auctions as auctions_module
+                from src.modules import auctions as auctions_module
 
                 item = session.get(Item, auction.item_id)
                 seller = session.get(User, auction.seller_id)

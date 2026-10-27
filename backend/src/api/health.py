@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Response
 
-from app.core.errors import ErrorCode
-from app.db.session import check_database
+from src.core.errors import ErrorCode
+from src.db.session import check_database
 
 router = APIRouter(tags=["health"])
 

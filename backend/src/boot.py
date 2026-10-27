@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from sqlalchemy import create_engine, text
 
-from app.core.config import get_settings
+from src.core.config import get_settings
 
 
 def _database_host_port(database_url: str) -> tuple[str, int]:
@@ -56,7 +56,7 @@ def main() -> None:
     run_alembic()
     import uvicorn
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, workers=1)
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, workers=1)
 
 
 if __name__ == "__main__":

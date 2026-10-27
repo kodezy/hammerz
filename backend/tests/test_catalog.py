@@ -42,7 +42,7 @@ def test_bidder_forbidden(client, bidder_token):
 
 
 def test_met_timeout_503(client, seller_token, respx_mock):
-    from app.modules import catalog as catalog_module
+    from src.modules import catalog as catalog_module
 
     catalog_module._cache.clear()
     respx_mock.get(

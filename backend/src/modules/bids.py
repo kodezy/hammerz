@@ -8,14 +8,14 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
-from app.core.errors import AppError, ErrorCode
-from app.core.limits import limiter
-from app.core.money import available
-from app.db.tables import Auction, Bid, Event, Key, Ledger, User, Wallet
-from app.modules import audit as audit_module
-from app.modules.alias import display_alias
-from app.modules.journal import Journal
+from src.core.config import get_settings
+from src.core.errors import AppError, ErrorCode
+from src.core.limits import limiter
+from src.core.money import available
+from src.db.tables import Auction, Bid, Event, Key, Ledger, User, Wallet
+from src.modules import audit as audit_module
+from src.modules.alias import display_alias
+from src.modules.journal import Journal
 
 Position = Literal[
     "NOT_PARTICIPATING",
@@ -430,7 +430,7 @@ def list_bids(
     after_sequence: int | None,
     limit: int,
 ) -> dict[str, Any]:
-    from app.modules import audit as audit_module
+    from src.modules import audit as audit_module
 
     auction = session.get(Auction, auction_id)
     if auction is None:

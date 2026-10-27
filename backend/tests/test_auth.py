@@ -9,10 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.core.config import get_settings
-from app.core.errors import ErrorCode
-from app.db.tables import Wallet
-from app.main import create_app
+from src.core.config import get_settings
+from src.core.errors import ErrorCode
+from src.db.tables import Wallet
+from src.main import create_app
 
 
 def _unique_email(prefix: str = "user") -> str:
@@ -49,7 +49,7 @@ def test_register_creates_bidder_wallet_zero(client, db_session):
 
 
 def test_login_body_accepts_reserved_test_tld():
-    from app.api.auth import LoginBody
+    from src.api.auth import LoginBody
 
     body = LoginBody(email="bidder1@hammerz.test", password="password1")
     assert body.email == "bidder1@hammerz.test"

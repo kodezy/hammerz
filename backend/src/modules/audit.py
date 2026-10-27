@@ -5,11 +5,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.canon import dumps as canon_dumps
-from app.core.canon import event_mac, secret_key_id
-from app.core.config import get_settings
-from app.db.tables import Event
-from app.modules.alias import display_alias
+from src.core.canon import dumps as canon_dumps
+from src.core.canon import event_mac, secret_key_id
+from src.core.config import get_settings
+from src.db.tables import Event
+from src.modules.alias import display_alias
 
 
 def build_event_payload(
@@ -109,8 +109,8 @@ def _public_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def verify_auction(session: Session, journal, auction_id: uuid.UUID) -> dict[str, Any]:
     from sqlalchemy import select
 
-    from app.core.errors import AppError, ErrorCode
-    from app.db.tables import Auction, Bid, Event
+    from src.core.errors import AppError, ErrorCode
+    from src.db.tables import Auction, Bid, Event
 
     checked_at = datetime.now(UTC)
     if journal.blocked or journal.pending_prepare() is not None:
@@ -178,7 +178,7 @@ def list_audit_events(
 ) -> dict[str, Any]:
     from sqlalchemy import select
 
-    from app.db.tables import Event
+    from src.db.tables import Event
 
     stmt = select(Event).where(Event.auction_id == auction_id)
     if after_sequence is not None:

@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 from sqlalchemy import func, select
 
-from app.core.errors import AppError, ErrorCode
-from app.db.tables import Bid
+from src.core.errors import AppError, ErrorCode
+from src.db.tables import Bid
 from tests.conftest import auth_headers
 from tests.test_bids import _bid, _deposit, _make_live_auction
 

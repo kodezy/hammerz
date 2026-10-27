@@ -3,10 +3,10 @@ import uuid
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, ErrorCode
-from app.db.session import get_db
-from app.modules import audit as audit_module
-from app.modules.journal import Journal
+from src.core.errors import AppError, ErrorCode
+from src.db.session import get_db
+from src.modules import audit as audit_module
+from src.modules.journal import Journal
 
 router = APIRouter(prefix="/api/v1/receipts", tags=["receipts"])
 
@@ -21,7 +21,7 @@ async def get_receipt(
     session: Session = Depends(get_db),
     journal: Journal = Depends(get_journal),
 ) -> dict:
-    from app.db.tables import Deal, Slip
+    from src.db.tables import Deal, Slip
 
     slip = session.get(Slip, receipt_id)
     if slip is None:

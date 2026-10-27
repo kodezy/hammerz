@@ -5,10 +5,10 @@ from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, ErrorCode
-from app.db.session import get_db
-from app.db.tables import User
-from app.modules.auth import current_user
+from src.core.errors import AppError, ErrorCode
+from src.db.session import get_db
+from src.db.tables import User
+from src.modules.auth import current_user
 
 bearer = HTTPBearer(auto_error=False)
 
