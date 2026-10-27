@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { formatClockDigits, msUntil } from '../lib/time'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { clockSkewMs, formatClockDigits, remainingMs } from '../lib/time'
 
 export function Clock({
   endsAt,
@@ -12,20 +12,27 @@ export function Clock({
   displayStatus: string
   onElapsed?: () => void
 }) {
-  const offset = Date.now() - new Date(serverTime).getTime()
+  const skewMs = useMemo(() => clockSkewMs(Date.now(), serverTime), [serverTime])
   const [now, setNow] = useState(() => Date.now())
+  const elapsedNotified = useRef(false)
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(id)
   }, [])
 
-  const serverNow = new Date(now - offset)
-  const ms = msUntil(endsAt, serverNow)
+  const ms = remainingMs(endsAt, now, skewMs)
 
   useEffect(() => {
-    if (ms <= 0) onElapsed?.()
-  }, [ms, onElapsed])
+    elapsedNotified.current = false
+  }, [endsAt])
+
+  useEffect(() => {
+    if (displayStatus !== 'LIVE') return
+    if (ms > 0 || elapsedNotified.current) return
+    elapsedNotified.current = true
+    onElapsed?.()
+  }, [displayStatus, ms, onElapsed])
 
   if (displayStatus === 'FINALIZING') {
     return <span className="font-medium text-warning">Finalizing</span>

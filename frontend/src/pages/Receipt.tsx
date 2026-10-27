@@ -62,8 +62,7 @@ export function Receipt() {
           Integrity · {integrityLabel(integrity.status ?? '')}
           {integrity.checked_at && (
             <span className="mt-1 block text-xs opacity-90">
-              Checked {formatBidTimestamp(integrity.checked_at)}. Settlement and audit integrity
-              are separate results.
+              Checked {formatBidTimestamp(integrity.checked_at)}.
             </span>
           )}
         </Banner>
@@ -96,7 +95,6 @@ export function Receipt() {
         <Button type="button" onClick={share} className="w-full">
           Copy share link
         </Button>
-        <p className="break-all text-sm text-muted select-all">{window.location.href}</p>
       </div>
     </div>
   )

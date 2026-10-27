@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { api, setAuthToken, setUnauthorizedHandler } from '../lib/http'
+import { api, HttpError, setAuthToken, setUnauthorizedHandler } from '../lib/http'
 import type { Role, User } from '../lib/types'
 
 type SessionState = {
@@ -17,6 +17,25 @@ type SessionState = {
 }
 
 const SessionContext = createContext<SessionState | null>(null)
+
+const TOKEN_KEY = 'hammerz:token'
+
+function readStoredToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeStoredToken(value: string | null): void {
+  try {
+    if (value) sessionStorage.setItem(TOKEN_KEY, value)
+    else sessionStorage.removeItem(TOKEN_KEY)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 const BIDDER_PATHS = ['/', '/wallet', '/my-wins', '/lots']
 const SELLER_PATHS = ['/', '/seller', '/lots']
@@ -40,12 +59,17 @@ export function defaultHome(role: Role | null): string {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(() => {
+    const stored = readStoredToken()
+    if (stored) setAuthToken(stored)
+    return stored
+  })
 
   const logout = useCallback(() => {
     setToken(null)
     setUser(null)
     setAuthToken(null)
+    writeStoredToken(null)
   }, [])
 
   useEffect(() => {
@@ -53,6 +77,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setToken(null)
       setUser(null)
       setAuthToken(null)
+      writeStoredToken(null)
     })
   }, [])
 
@@ -68,8 +93,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .then((me) => {
         if (!cancelled) setUser(me)
       })
-      .catch(() => {
-        if (!cancelled) logout()
+      .catch((err) => {
+        if (!cancelled && err instanceof HttpError && err.status === 401) logout()
       })
     return () => {
       cancelled = true
@@ -83,6 +108,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     })
     setToken(res.token)
     setAuthToken(res.token)
+    writeStoredToken(res.token)
     const me = await api<User>('/auth/me')
     setUser(me)
     return me

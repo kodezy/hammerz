@@ -210,11 +210,6 @@ export function Lot() {
           Connection lost. Reconnecting… Latest bids may be outdated.
         </Banner>
       )}
-      {!user && live && (
-        <Banner variant="info">
-          Follow the auction and inspect its public audit without an account.
-        </Banner>
-      )}
       <div>
         <StatusBadge status={displayStatus} variant="pill" />
         <h1 className="mt-2 font-display text-4xl font-normal md:text-[40px]">{item.title}</h1>

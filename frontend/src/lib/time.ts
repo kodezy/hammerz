@@ -28,8 +28,12 @@ export function formatClockDigits(ms: number): string {
   return `${pad(h)} : ${pad(m)} : ${pad(s)}`
 }
 
-export function msUntil(iso: string, serverNow: Date): number {
-  return new Date(iso).getTime() - serverNow.getTime()
+export function clockSkewMs(clientNow: number, serverTimeIso: string): number {
+  return clientNow - new Date(serverTimeIso).getTime()
+}
+
+export function remainingMs(endsAt: string, clientNow: number, skewMs: number): number {
+  return new Date(endsAt).getTime() - (clientNow - skewMs)
 }
 
 export function formatBidTimestamp(iso: string): string {

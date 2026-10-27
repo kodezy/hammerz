@@ -92,7 +92,7 @@ export function Wallet() {
     <div className="space-y-8">
       <PageHeading
         title="Your wallet"
-        subtitle="Balances in USD · Available = total − committed"
+        subtitle="USD balances for bidding"
       />
       {q.data?.confirmation_pending && <Banner variant="warning">Confirmation pending</Banner>}
       {q.isLoading && <p className="text-muted">Loading…</p>}
@@ -136,13 +136,13 @@ export function Wallet() {
             ))}
           </ul>
           <p className="mt-3 text-xs text-muted">
-            Released automatically when outbid or cancelled.
+            Released when you are outbid or a lot is cancelled.
           </p>
         </section>
       )}
       <Card>
         <h2 className="mb-2 font-semibold text-text">Add funds</h2>
-        <p className="mb-4 text-sm text-muted">No payment will be processed.</p>
+        <p className="mb-4 text-sm text-muted">Credits are added to your available balance.</p>
         <form onSubmit={onDeposit} className="max-w-xl space-y-4">
           <TextField
             label="Amount (USD)"

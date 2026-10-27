@@ -41,10 +41,7 @@ export function Login() {
         title="Welcome back."
         subtitle="Sign in to bid or manage your auctions."
       />
-      {created && (
-        <p className="text-sm text-muted">Sign in to continue. Your wallet starts at $0.00.</p>
-      )}
-      {created && <Banner variant="success">Account created</Banner>}
+      {created && <Banner variant="success">Account created. Sign in to continue.</Banner>}
       <Card>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <TextField
@@ -75,7 +72,7 @@ export function Login() {
       </Card>
       <p className="text-sm text-muted">
         <Link to="/" className="text-brand hover:underline">
-          Browse auctions without signing in →
+          Back to auctions
         </Link>
       </p>
     </div>

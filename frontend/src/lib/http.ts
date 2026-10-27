@@ -49,7 +49,7 @@ export async function api<T>(
       data = { message: text }
     }
   }
-  if (res.status === 401) {
+  if (res.status === 401 && token) {
     token = null
     onUnauthorized?.()
   }

@@ -40,7 +40,7 @@ export function Register() {
     <div className="mx-auto max-w-md space-y-6">
       <PageHeading
         title="Create your account."
-        subtitle="Your wallet starts at $0.00."
+        subtitle="Register to place bids on live lots."
       />
       <Card>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -81,7 +81,7 @@ export function Register() {
       </Card>
       <p className="text-sm text-muted">
         <Link to="/" className="text-brand hover:underline">
-          Browse auctions without signing in →
+          Back to auctions
         </Link>
       </p>
     </div>

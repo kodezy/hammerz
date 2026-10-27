@@ -58,9 +58,6 @@ export function Home() {
             )
           })}
         </ul>
-        <p className="text-sm text-muted">
-          Public audit is available from every auction. No sign-in required.
-        </p>
       </section>
     </div>
   )

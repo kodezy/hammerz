@@ -63,8 +63,7 @@ export function Audit() {
           <span className="font-medium">{integrityLabel(verification.status ?? '')}</span>
           {verification.status === 'VERIFIED' && bidCount > 0 && (
             <p className="mt-1 text-xs opacity-90">
-              All {bidCount} accepted bids and lifecycle events match the independent audit
-              evidence.
+              {bidCount} accepted bid{bidCount === 1 ? '' : 's'} verified against the audit journal.
             </p>
           )}
         </Banner>
@@ -112,12 +111,12 @@ export function Audit() {
           </Button>
         )}
         {bidCount > 0 && (
-          <p className="mt-3 text-xs text-muted">All {bidCount} accepted bids shown.</p>
+          <p className="mt-3 text-xs text-muted">
+            {bidCount} accepted bid{bidCount === 1 ? '' : 's'} shown.
+          </p>
         )}
       </Card>
-      <p className="text-sm text-muted">
-        Public aliases protect bidder identities. No names or emails are included.
-      </p>
+      <p className="text-sm text-muted">Bidders appear by public alias.</p>
     </div>
   )
 }
