@@ -1,10 +1,3 @@
-export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
-}
-
 export function formatEndsLine(iso: string): string {
   const d = new Date(iso)
   const date = d.toLocaleString('en-US', {
