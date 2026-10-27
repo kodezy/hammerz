@@ -1,5 +1,9 @@
 import type { DisplayStatus } from './types'
 
+export function sellerCanCancel(status: DisplayStatus | string): boolean {
+  return status === 'LIVE' || status === 'SCHEDULED'
+}
+
 export function lotStatusLabel(status: DisplayStatus | string): string {
   switch (status) {
     case 'SCHEDULED':

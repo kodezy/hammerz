@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useSession } from '../app/session'
+import { useToast } from '../app/toast'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -16,10 +17,10 @@ import { clearPending, listPending, savePending } from '../lib/pending'
 
 export function Wallet() {
   const { user } = useSession()
+  const { showToast } = useToast()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['wallet'], queryFn: getWallet, enabled: !!user })
   const [amount, setAmount] = useState('')
-  const [msg, setMsg] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,16 +34,21 @@ export function Wallet() {
     deposit(cents, rec.key)
       .then(() => {
         clearPending(user.id, rec.key)
-        setMsg('Funds added')
+        showToast('Funds added')
         qc.invalidateQueries({ queryKey: ['wallet'] })
       })
       .catch((err) => {
         if (err instanceof HttpError && (err.status === 202 || err.code === 'OPERATION_PENDING')) {
           setError('Confirmation pending')
+          showToast('Confirmation pending', 'warning')
+          return
         }
+        const message = err instanceof HttpError ? err.message : 'Deposit failed'
+        setError(message)
+        showToast(message, 'danger')
       })
       .finally(() => setPending(false))
-  }, [user, qc])
+  }, [user, qc, showToast])
 
   if (!user || user.role !== 'BIDDER') {
     return <p className="text-muted">Wallet is for bidders only.</p>
@@ -52,10 +58,10 @@ export function Wallet() {
     e.preventDefault()
     if (!user) return
     setError(null)
-    setMsg(null)
     const cents = parseDollarsToCents(amount)
     if (cents === null || cents <= 0) {
       setError('Enter a valid USD amount')
+      showToast('Enter a valid USD amount', 'danger')
       return
     }
     const key = crypto.randomUUID()
@@ -71,7 +77,7 @@ export function Wallet() {
     try {
       await deposit(cents, key)
       clearPending(user.id, key)
-      setMsg('Funds added')
+      showToast('Funds added')
       setAmount('')
       await qc.invalidateQueries({ queryKey: ['wallet'] })
     } catch (err) {
@@ -80,8 +86,11 @@ export function Wallet() {
         (err.status === 202 || err.code === 'OPERATION_PENDING')
       ) {
         setError('Confirmation pending')
+        showToast('Confirmation pending', 'warning')
       } else {
-        setError(err instanceof HttpError ? err.message : 'Deposit failed')
+        const message = err instanceof HttpError ? err.message : 'Deposit failed'
+        setError(message)
+        showToast(message, 'danger')
       }
     } finally {
       setPending(false)
@@ -96,6 +105,7 @@ export function Wallet() {
       />
       {q.data?.confirmation_pending && <Banner variant="warning">Confirmation pending</Banner>}
       {q.isLoading && <p className="text-muted">Loading…</p>}
+      {q.isError && <p className="text-danger">Could not load wallet.</p>}
       {q.data && (
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="min-h-[180px]">
@@ -151,7 +161,6 @@ export function Wallet() {
             disabled={pending}
           />
           {error && <Banner variant="danger">{error}</Banner>}
-          {msg && <Banner variant="success">{msg}</Banner>}
           <Button type="submit" disabled={pending} className="w-full sm:w-auto">
             Add funds
           </Button>

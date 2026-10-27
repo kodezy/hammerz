@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { useSession } from '../app/session'
+import { useToast } from '../app/toast'
 import { Banner } from '../components/Banner'
 import { Button, ButtonLink } from '../components/Button'
 import { TextAreaField, TextField } from '../components/TextField'
@@ -24,6 +25,7 @@ import {
   lotArtworkLine,
   minimumBidLine,
 } from '../lib/lotCopy'
+import { sellerCanCancel } from '../lib/display'
 import { HttpError } from '../lib/http'
 import { parseDollarsToCents } from '../lib/money'
 import { clearPending, listPending, savePending } from '../lib/pending'
@@ -44,6 +46,7 @@ function AntiSnipeNotice() {
 export function Lot() {
   const { id = '' } = useParams()
   const { user } = useSession()
+  const { showToast } = useToast()
   const qc = useQueryClient()
   const auctionQ = useQuery({
     queryKey: ['auction', id],
@@ -104,15 +107,23 @@ export function Lot() {
         placeBid(id, body.amount_cents, rec.key)
           .then(() => {
             clearPending(user.id, rec.key)
+            showToast('Bid placed')
             refreshLot()
           })
           .catch((err) => {
-            if (err instanceof HttpError && err.status === 202) setError('Confirmation pending')
+            if (err instanceof HttpError && err.status === 202) {
+              setError('Confirmation pending')
+              showToast('Confirmation pending', 'warning')
+              return
+            }
+            const message = err instanceof HttpError ? err.message : 'Bid failed'
+            setError(message)
+            showToast(message, 'danger')
           })
           .finally(() => setPending(false))
       }
     }
-  }, [id, user, refreshLot])
+  }, [id, user, refreshLot, showToast])
 
   const a = auctionQ.data
   const position = posQ.data?.position
@@ -127,6 +138,7 @@ export function Lot() {
     const cents = parseDollarsToCents(amount)
     if (!cents) {
       setError('Invalid bid amount')
+      showToast('Invalid bid amount', 'danger')
       return
     }
     const key = crypto.randomUUID()
@@ -143,12 +155,16 @@ export function Lot() {
       await placeBid(id, cents, key)
       clearPending(user.id, key)
       setAmount('')
+      showToast('Bid placed')
       refreshLot()
     } catch (err) {
       if (err instanceof HttpError && err.status === 202) {
         setError('Confirmation pending')
+        showToast('Confirmation pending', 'warning')
       } else {
-        setError(err instanceof HttpError ? err.message : 'Bid failed')
+        const message = err instanceof HttpError ? err.message : 'Bid failed'
+        setError(message)
+        showToast(message, 'danger')
       }
     } finally {
       setPending(false)
@@ -162,6 +178,8 @@ export function Lot() {
       const page = await listBids(id, oldestSequence)
       const existing = new Set(bidItems.map((b) => b.sequence))
       setOlderBids((prev) => [...prev, ...page.items.filter((b) => !existing.has(b.sequence))])
+    } catch {
+      showToast('Could not load earlier bids', 'danger')
     } finally {
       setLoadingOlder(false)
     }
@@ -169,17 +187,28 @@ export function Lot() {
 
   async function onCancel() {
     if (!user || user.role !== 'SELLER') return
+    const bidCount = Number(auctionQ.data?.bid_count ?? 0)
+    if (bidCount > 0 && cancelReason.trim().length < 10) {
+      const message = 'Cancellation reason required (at least 10 characters)'
+      setError(message)
+      showToast(message, 'danger')
+      return
+    }
     const key = crypto.randomUUID()
     try {
       await cancelLot(id, cancelReason || null, key)
       setShowCancel(false)
+      showToast('Lot cancelled')
       refreshLot()
     } catch (err) {
-      setError(err instanceof HttpError ? err.message : 'Cancel failed')
+      const message = err instanceof HttpError ? err.message : 'Cancel failed'
+      setError(message)
+      showToast(message, 'danger')
     }
   }
 
   if (auctionQ.isLoading) return <p className="text-muted">Loading…</p>
+  if (auctionQ.isError) return <p className="text-danger">Could not load lot.</p>
   if (!a) return <p className="text-danger">Lot not found.</p>
 
   const item = a.item as AuctionSummary['item']
@@ -187,6 +216,7 @@ export function Lot() {
   const displayStatus = String(a.display_status)
   const cancelled = displayStatus === 'CANCELLED'
   const live = displayStatus === 'LIVE'
+  const canCancel = isOwner && sellerCanCancel(displayStatus)
   const currentMoney =
     a.current_bid ?? a.opening_bid
   const increment = a.minimum_increment
@@ -328,7 +358,8 @@ export function Lot() {
               )}
             </form>
           )}
-          {isOwner && !cancelled && (
+          {error && !canBid && <Banner variant="danger">{error}</Banner>}
+          {canCancel && (
             <div>
               {!showCancel ? (
                 <button
@@ -376,6 +407,7 @@ export function Lot() {
       {!cancelled && (
         <section>
           <h2 className="mb-2 font-medium">Latest bids</h2>
+          {bidsQ.isError && <p className="mb-2 text-sm text-danger">Could not load bids.</p>}
           <ul className="space-y-1 text-sm">
             {bidItems.map((b) => (
               <li key={b.sequence}>

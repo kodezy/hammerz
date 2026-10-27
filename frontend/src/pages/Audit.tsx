@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useToast } from '../app/toast'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -13,6 +14,7 @@ import { formatBidTimestamp } from '../lib/time'
 
 export function Audit() {
   const { id = '' } = useParams()
+  const { showToast } = useToast()
   const [older, setOlder] = useState<BidRow[]>([])
   const [loadingOlder, setLoadingOlder] = useState(false)
   const auctionQ = useQuery({ queryKey: ['auction', id], queryFn: () => getAuction(id) })
@@ -38,6 +40,8 @@ export function Audit() {
       const page = await listBids(id, oldest)
       const have = new Set(bidItems.map((b) => b.sequence))
       setOlder((prev) => [...prev, ...page.items.filter((b) => !have.has(b.sequence))])
+    } catch {
+      showToast('Could not load earlier bids', 'danger')
     } finally {
       setLoadingOlder(false)
     }
@@ -50,6 +54,7 @@ export function Audit() {
         subtitle={a ? lotListingTitle(a.display_no, a.item.title) : undefined}
       />
       {auditQ.isLoading && <p className="text-muted">Loading…</p>}
+      {auditQ.isError && <p className="text-danger">Could not load audit.</p>}
       {verification && (
         <Banner
           variant={
@@ -96,7 +101,8 @@ export function Audit() {
             </li>
           ))}
         </ul>
-        {bidItems.length === 0 && !bidsQ.isLoading && (
+        {bidsQ.isError && <p className="text-sm text-danger">Could not load bids.</p>}
+        {bidItems.length === 0 && !bidsQ.isLoading && !bidsQ.isError && (
           <p className="text-sm text-muted">No accepted bids yet.</p>
         )}
         {bidItems.length >= 20 && (

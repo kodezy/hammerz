@@ -4,6 +4,7 @@ import { AppQueryProvider } from './query'
 import { AppRoutes } from './routes'
 import { SessionProvider } from './session'
 import { ThemeProvider } from './theme'
+import { ToastProvider } from './toast'
 
 export function App() {
   return (
@@ -11,9 +12,11 @@ export function App() {
       <AppQueryProvider>
         <SessionProvider>
           <BrowserRouter>
-            <Shell>
-              <AppRoutes />
-            </Shell>
+            <ToastProvider>
+              <Shell>
+                <AppRoutes />
+              </Shell>
+            </ToastProvider>
           </BrowserRouter>
         </SessionProvider>
       </AppQueryProvider>

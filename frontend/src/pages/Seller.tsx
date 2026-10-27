@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { useSession } from '../app/session'
+import { useToast } from '../app/toast'
 import { AuctionListRow } from '../components/AuctionListRow'
 import { Banner } from '../components/Banner'
 import { Button, ButtonLink } from '../components/Button'
@@ -38,6 +39,7 @@ const sellerTabs: { key: SellerTab; label: string }[] = [
 
 export function Seller() {
   const { user } = useSession()
+  const { showToast } = useToast()
   const qc = useQueryClient()
   const catalogRef = useRef<HTMLDivElement>(null)
   const [lotTab, setLotTab] = useState<SellerTab>('LIVE')
@@ -57,6 +59,7 @@ export function Seller() {
   const [increment, setIncrement] = useState('10')
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
 
   if (!user || user.role !== 'SELLER') {
     return <p className="text-muted">Seller dashboard requires a seller account.</p>
@@ -84,12 +87,14 @@ export function Seller() {
     const incCents = parseDollarsToCents(increment)
     if (!openCents || !incCents) {
       setError('Invalid amounts')
+      showToast('Invalid amounts', 'danger')
       return
     }
     const starts = new Date()
     starts.setMinutes(starts.getMinutes() + 5)
     const ends = new Date(starts)
     ends.setHours(ends.getHours() + 2)
+    setPublishing(true)
     try {
       await createLot({
         external_id: selected,
@@ -99,9 +104,16 @@ export function Seller() {
         ends_at: ends.toISOString(),
       })
       setSelected(null)
+      setError(null)
+      setLotTab('SCHEDULED')
+      showToast('Lot published. It goes live in about 5 minutes.')
       await qc.invalidateQueries({ queryKey: ['seller-lots'] })
     } catch (err) {
-      setError(err instanceof HttpError ? err.message : 'Create failed')
+      const message = err instanceof HttpError ? err.message : 'Create failed'
+      setError(message)
+      showToast(message, 'danger')
+    } finally {
+      setPublishing(false)
     }
   }
 
@@ -125,6 +137,8 @@ export function Seller() {
           </Banner>
         )}
         <TabNav tabs={tabLabels} active={lotTab} onChange={setLotTab} />
+        {lots.isLoading && <p className="text-muted">Loading…</p>}
+        {lots.isError && <p className="text-danger">Could not load your lots.</p>}
         <ul className="flex flex-col gap-4">
           {lots.data?.items.map((row) => {
             const r = row as SellerRow
@@ -184,6 +198,10 @@ export function Seller() {
             <Button type="submit" className="shrink-0 sm:w-[244px]">Search</Button>
           </form>
           {catalog.isLoading && <p className="mt-4 text-sm text-muted">Loading…</p>}
+          {catalog.isError && <p className="mt-4 text-sm text-danger">Could not search the catalog.</p>}
+          {catalog.isSuccess && catalog.data.items.length === 0 && (
+            <p className="mt-4 text-sm text-muted">No matching works. Try another artist or title.</p>
+          )}
           <ul className="mt-4 space-y-2">
             {catalog.data?.items.map((item: CatalogItem) => (
               <li key={item.external_id}>
@@ -212,7 +230,9 @@ export function Seller() {
                 onChange={(e) => setIncrement(e.target.value)}
               />
               {error && <Banner variant="danger">{error}</Banner>}
-              <Button type="submit">Publish lot</Button>
+              <Button type="submit" disabled={publishing}>
+                {publishing ? 'Publishing…' : 'Publish lot'}
+              </Button>
             </form>
           )}
         </Card>

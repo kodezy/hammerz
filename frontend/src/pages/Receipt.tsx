@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
+import { useToast } from '../app/toast'
 import { Banner } from '../components/Banner'
 import { Button, ButtonLink } from '../components/Button'
 import { Card } from '../components/Card'
@@ -12,6 +13,7 @@ import { formatBidTimestamp } from '../lib/time'
 
 export function Receipt() {
   const { id = '' } = useParams()
+  const { showToast } = useToast()
   const q = useQuery({
     queryKey: ['receipt', id],
     queryFn: () => getReceipt(id),
@@ -25,12 +27,14 @@ export function Receipt() {
   async function share() {
     try {
       await navigator.clipboard.writeText(window.location.href)
+      showToast('Share link copied')
     } catch {
-      /* URL shown below */
+      showToast('Could not copy the link', 'danger')
     }
   }
 
   if (q.isLoading) return <p className="text-muted">Loading…</p>
+  if (q.isError) return <p className="text-danger">Could not load receipt.</p>
   if (!r) return <p className="text-danger">Receipt not found.</p>
 
   const amount = (r.amount as { cents: number; currency: 'USD' }) ?? {
