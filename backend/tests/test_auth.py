@@ -48,7 +48,22 @@ def test_register_creates_bidder_wallet_zero(client, db_session):
     assert total == 0
 
 
+def test_login_body_accepts_reserved_test_tld():
+    from app.api.auth import LoginBody
+
+    body = LoginBody(email="bidder1@hammerz.test", password="password1")
+    assert body.email == "bidder1@hammerz.test"
+
+
 @pytest.mark.usefixtures("engine")
+def test_login_accepts_reserved_test_tld(client):
+    email = f"demo-{uuid.uuid4().hex[:8]}@hammerz.test"
+    assert _register(client, email=email).status_code == 201
+    r = client.post("/api/v1/auth/login", json={"email": email, "password": "password1"})
+    assert r.status_code == 200
+    assert r.json()["token"]
+
+
 def test_register_email_normalization(client):
     suffix = uuid.uuid4().hex[:6]
     raw = f"  User.{suffix}@Example.COM  "

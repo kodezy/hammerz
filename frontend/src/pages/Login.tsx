@@ -2,7 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { defaultHome, isReturnToAllowed, useSession } from '../app/session'
 import { Banner } from '../components/Banner'
+import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { PageHeading } from '../components/PageHeading'
+import { TextField } from '../components/TextField'
 import { HttpError } from '../lib/http'
 
 export function Login() {
@@ -33,49 +36,48 @@ export function Login() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <h1 className="mb-4 text-2xl font-semibold">Sign in</h1>
+    <div className="mx-auto max-w-md space-y-6">
+      <PageHeading
+        title="Welcome back."
+        subtitle="Sign in to bid or manage your auctions."
+      />
       {created && (
-      <div className="mb-4">
-        <Banner variant="success">Account created. Sign in to continue.</Banner>
-      </div>
+        <p className="text-sm text-muted">Sign in to continue. Your wallet starts at $0.00.</p>
       )}
+      {created && <Banner variant="success">Account created</Banner>}
       <Card>
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <label className="text-sm">
-            Email
-            <input
-              type="email"
-              autoComplete="email"
-              className="mt-1 w-full rounded-lg border border-control-border bg-surface px-3 py-2"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label className="text-sm">
-            Password
-            <input
-              type="password"
-              autoComplete="current-password"
-              className="mt-1 w-full rounded-lg border border-control-border bg-surface px-3 py-2"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <TextField
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <TextField
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
           {error && <Banner variant="danger">{error}</Banner>}
-          <button
-            type="submit"
-            className="rounded-lg bg-action px-4 py-2 text-on-action hover:opacity-90"
-          >
-            Sign in
-          </button>
+          <Button type="submit">Sign in</Button>
         </form>
         <p className="mt-4 text-sm text-muted">
-          <Link to="/register" className="text-brand hover:underline">Create account</Link>
+          New here?{' '}
+          <Link to="/register" className="text-brand hover:underline">Create account →</Link>
         </p>
       </Card>
+      <p className="text-sm text-muted">
+        <Link to="/" className="text-brand hover:underline">
+          Browse auctions without signing in →
+        </Link>
+      </p>
     </div>
   )
 }

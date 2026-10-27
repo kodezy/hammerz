@@ -18,7 +18,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "pytest-asyncio",
     "ruff",
     "respx",
 ]
@@ -31,12 +30,11 @@ build-backend = "hatchling.build"
 packages = ["app"]
 
 [project.scripts]
-seed-evaluation = "app.modules.seed:main"
+seed-demo = "app.modules.seed:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100

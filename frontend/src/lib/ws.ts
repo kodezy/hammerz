@@ -15,6 +15,7 @@ export function connectLotSocket(
   auctionId: string,
   onMessage: (msg: WsMessage) => void,
   onGap: () => void,
+  onConnected?: (connected: boolean) => void,
 ): LotSocket {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const url = `${proto}//${window.location.host}/ws/auctions/${auctionId}`
@@ -33,6 +34,7 @@ export function connectLotSocket(
     socket = new WebSocket(url)
     socket.onopen = () => {
       backoff = 1000
+      onConnected?.(true)
       poll()
     }
     socket.onmessage = (ev) => {
@@ -52,6 +54,7 @@ export function connectLotSocket(
       }
     }
     socket.onclose = () => {
+      onConnected?.(false)
       if (pollTimer) window.clearInterval(pollTimer)
       if (!closed) {
         window.setTimeout(connect, backoff)

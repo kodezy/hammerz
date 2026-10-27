@@ -54,7 +54,13 @@ def list_seller_auctions(
             counts["ended"] += 1
         elif ds == "CANCELLED":
             counts["cancelled"] += 1
-        if status == "ALL" or status == "CANCELLED" and ds == "CANCELLED" or status == "SCHEDULED" and ds == "SCHEDULED" or status == "LIVE" and ds == "LIVE" or status == "ENDED" and ds in ("FINALIZING", "CLOSED"):
+        if (
+            status == "ALL"
+            or (status == "CANCELLED" and ds == "CANCELLED")
+            or (status == "SCHEDULED" and ds == "SCHEDULED")
+            or (status == "LIVE" and ds == "LIVE")
+            or (status == "ENDED" and ds in ("FINALIZING", "CLOSED"))
+        ):
             snapshots.append(snap)
 
     total = len(snapshots)

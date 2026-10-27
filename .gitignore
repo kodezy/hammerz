@@ -9,5 +9,5 @@ frontend/dist/
 .ruff_cache/
 .superpowers/
 
-# Agent / superpowers planning (local only; product spec is SPEC.md at repo root)
+# Local agent planning
 docs/superpowers/

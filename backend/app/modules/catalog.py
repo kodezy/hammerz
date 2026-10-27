@@ -94,13 +94,44 @@ async def search_catalog(q: str, offset: int, limit: int) -> dict[str, Any]:
     return result
 
 
+# Used when the live Met API is unreachable (e.g. demo seed in Docker).
+_DEMO_OBJECT_SNAPSHOTS: dict[int, dict[str, Any]] = {
+    436535: {
+        "artist": "Vincent van Gogh",
+        "attribution": "Demo catalog snapshot",
+        "description": "https://www.metmuseum.org/art/collection/search/436535",
+        "external_id": "436535",
+        "object_begin_date": 1889,
+        "image_url": "https://images.metmuseum.org/CRDImages/ep/original/DT1567.jpg",
+        "is_public_domain": True,
+        "object_url": "https://www.metmuseum.org/art/collection/search/436535",
+        "provider": "met",
+        "title": "Self-Portrait with a Straw Hat (obverse: The Potato Peeler)",
+    },
+    436532: {
+        "artist": "Vincent van Gogh",
+        "attribution": "Demo catalog snapshot",
+        "description": "https://www.metmuseum.org/art/collection/search/436532",
+        "external_id": "436532",
+        "object_begin_date": 1887,
+        "image_url": "https://images.metmuseum.org/CRDImages/ep/original/DT1502_cropped2.jpg",
+        "is_public_domain": True,
+        "object_url": "https://www.metmuseum.org/art/collection/search/436532",
+        "provider": "met",
+        "title": "Wheat Field with Cypresses",
+    },
+}
+
+
 def _map_object(data: dict[str, Any]) -> dict[str, Any]:
     artist = data.get("artistDisplayName") or None
+    begin = data.get("objectBeginDate")
     return {
         "artist": artist,
         "attribution": data.get("creditLine"),
         "description": data.get("objectURL"),
         "external_id": str(data.get("objectID")),
+        "object_begin_date": begin,
         "image_url": data.get("primaryImage"),
         "is_public_domain": bool(data.get("isPublicDomain")),
         "object_url": data.get("objectURL"),
@@ -109,13 +140,16 @@ def _map_object(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def fetch_object(object_id: int) -> dict[str, Any]:
+async def fetch_object(object_id: int, *, allow_demo_snapshot: bool = False) -> dict[str, Any]:
     if object_id <= 0:
         raise AppError(422, ErrorCode.VALIDATION_ERROR, "Invalid object id")
     async with httpx.AsyncClient() as client:
         try:
             data = await _get_json(client, MET_OBJECT.format(object_id=object_id))
         except AppError:
+            fallback = _DEMO_OBJECT_SNAPSHOTS.get(object_id) if allow_demo_snapshot else None
+            if fallback is not None:
+                return fallback
             raise
     if not data.get("title") or not data.get("primaryImage"):
         raise AppError(422, ErrorCode.VALIDATION_ERROR, "Catalog object missing title or image")

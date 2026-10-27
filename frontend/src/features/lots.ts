@@ -5,14 +5,29 @@ export type AuctionSummary = {
   id: string
   display_no: number
   display_status: DisplayStatus
-  item: { title: string; artist: string | null; image_url: string | null }
+  bid_count?: number
+  leader_alias?: string | null
+  cancel_reason?: string | null
+  receipt_id?: string | null
+  item: {
+    title: string
+    artist: string | null
+    image_url: string | null
+    description?: string | null
+    attribution?: string | null
+    object_url?: string | null
+    external_id?: string | number
+    object_begin_date?: string | number | null
+  }
   current_bid: Money | null
   opening_bid: Money
+  minimum_increment: Money
   ends_at: string
   starts_at: string
   version: number
   server_time: string
   confirmation_pending?: boolean
+  viewer_is_owner?: boolean
 }
 
 export type BidRow = {
@@ -34,12 +49,16 @@ export async function getAuction(id: string) {
   return api<AuctionSummary & Record<string, unknown>>(`/auctions/${id}`)
 }
 
-export async function listBids(auctionId: string) {
-  return api<{ items: BidRow[] }>(`/auctions/${auctionId}/bids?limit=50`)
+export async function listBids(auctionId: string, beforeSequence?: number) {
+  const qs = new URLSearchParams({ limit: '20' })
+  if (beforeSequence !== undefined) qs.set('before_sequence', String(beforeSequence))
+  return api<{ items: BidRow[] }>(`/auctions/${auctionId}/bids?${qs}`)
 }
 
 export async function participantStatus(auctionId: string) {
-  return api<{ position: Position }>(`/me/auctions/${auctionId}/status`)
+  return api<{ position: Position; reserved_cents?: number | null }>(
+    `/me/auctions/${auctionId}/status`,
+  )
 }
 
 export async function placeBid(auctionId: string, amountCents: number, idempotencyKey: string) {
@@ -69,13 +88,16 @@ export async function createLot(body: {
 }
 
 export async function sellerAuctions(status = 'ALL') {
-  return api<{ items: Record<string, unknown>[]; total_received_cents: number }>(
-    `/seller/auctions?status=${status}&limit=20`,
-  )
+  return api<{
+    items: Record<string, unknown>[]
+    total_received_cents: number
+    counts?: { live: number; scheduled: number; cancelled: number; ended: number }
+  }>(`/seller/auctions?status=${status}&limit=20`)
 }
 
 export type AuditPage = {
-  items: { sequence: number; type: string }[]
+  items: { sequence: number; type: string; payload?: Record<string, unknown> }[]
+  bid_count?: number
   verification: { status: string; checked_at?: string }
 }
 

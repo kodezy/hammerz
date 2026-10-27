@@ -123,6 +123,15 @@ class Journal:
         self._pending_operation_id = pending
         self.blocked = False
 
+    def _refresh_from_disk(self) -> None:
+        if not self.manifest_path.exists() or not self.journal_path.exists():
+            self.blocked = True
+            return
+        try:
+            self._verify_chain()
+        except (json.JSONDecodeError, KeyError, ValueError):
+            self.blocked = True
+
     @contextmanager
     def acquire(self, timeout: float = 5.0):
         lock_fd = os.open(self.lock_path, os.O_CREAT | os.O_RDWR)
@@ -163,83 +172,86 @@ class Journal:
             raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "Audit journal has pending prepare")
 
     def append_prepare(self, record: dict[str, Any]) -> None:
-        self._ensure_writable()
         operation_id = uuid.UUID(str(record["operation_id"]))
-        line: dict[str, Any] = {
-            "deployment_id": self.deployment_id,
-            "operation_id": str(operation_id),
-            "prev": self._last_hmac,
-            "schema_version": SCHEMA_VERSION,
-            "seq": self._seq + 1,
-            "type": "PREPARE",
-        }
-        if "event" in record:
-            line["event"] = record["event"]
-        if "fingerprint" in record:
-            line["fingerprint"] = record["fingerprint"]
-        mac = journal_mac(
-            self.secret,
-            self.deployment_id,
-            self.key_id,
-            self._last_hmac,
-            line,
-        )
-        line["hmac"] = mac
         with self.acquire():
+            self._refresh_from_disk()
+            self._ensure_writable()
+            line: dict[str, Any] = {
+                "deployment_id": self.deployment_id,
+                "operation_id": str(operation_id),
+                "prev": self._last_hmac,
+                "schema_version": SCHEMA_VERSION,
+                "seq": self._seq + 1,
+                "type": "PREPARE",
+            }
+            if "event" in record:
+                line["event"] = record["event"]
+            if "fingerprint" in record:
+                line["fingerprint"] = record["fingerprint"]
+            mac = journal_mac(
+                self.secret,
+                self.deployment_id,
+                self.key_id,
+                self._last_hmac,
+                line,
+            )
+            line["hmac"] = mac
             self._append_line(line)
             self._seq += 1
             self._last_hmac = mac
             self._pending_operation_id = operation_id
 
     def append_commit(self, operation_id: uuid.UUID) -> None:
-        if self.blocked:
-            raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "Audit journal unavailable")
-        if self._pending_operation_id != operation_id:
-            raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "No matching prepare for commit")
-        line: dict[str, Any] = {
-            "deployment_id": self.deployment_id,
-            "operation_id": str(operation_id),
-            "prev": self._last_hmac,
-            "schema_version": SCHEMA_VERSION,
-            "seq": self._seq + 1,
-            "type": "COMMIT",
-        }
-        mac = journal_mac(
-            self.secret,
-            self.deployment_id,
-            self.key_id,
-            self._last_hmac,
-            line,
-        )
-        line["hmac"] = mac
         with self.acquire():
+            self._refresh_from_disk()
+            if self.blocked:
+                raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "Audit journal unavailable")
+            if self._pending_operation_id != operation_id:
+                raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "No matching prepare for commit")
+            line: dict[str, Any] = {
+                "deployment_id": self.deployment_id,
+                "operation_id": str(operation_id),
+                "prev": self._last_hmac,
+                "schema_version": SCHEMA_VERSION,
+                "seq": self._seq + 1,
+                "type": "COMMIT",
+            }
+            mac = journal_mac(
+                self.secret,
+                self.deployment_id,
+                self.key_id,
+                self._last_hmac,
+                line,
+            )
+            line["hmac"] = mac
             self._append_line(line)
             self._seq += 1
             self._last_hmac = mac
             self._pending_operation_id = None
 
     def append_abort(self, operation_id: uuid.UUID) -> None:
-        if self.blocked:
-            return
-        if self._pending_operation_id != operation_id:
-            return
-        line: dict[str, Any] = {
-            "deployment_id": self.deployment_id,
-            "operation_id": str(operation_id),
-            "prev": self._last_hmac,
-            "schema_version": SCHEMA_VERSION,
-            "seq": self._seq + 1,
-            "type": "ABORT",
-        }
-        mac = journal_mac(
-            self.secret,
-            self.deployment_id,
-            self.key_id,
-            self._last_hmac,
-            line,
-        )
-        line["hmac"] = mac
         with self.acquire():
+            self._refresh_from_disk()
+            if self.blocked:
+                return
+            if self._pending_operation_id != operation_id:
+                return
+            line: dict[str, Any] = {
+                "deployment_id": self.deployment_id,
+                "operation_id": str(operation_id),
+                "prev": self._last_hmac,
+                "schema_version": SCHEMA_VERSION,
+                "seq": self._seq + 1,
+                "type": "ABORT",
+            }
+            mac = journal_mac(
+                self.secret,
+                self.deployment_id,
+                self.key_id,
+                self._last_hmac,
+                line,
+            )
+            line["hmac"] = mac
             self._append_line(line)
             self._seq += 1
             self._last_hmac = mac

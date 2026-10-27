@@ -7,15 +7,39 @@ from app.core.config import get_settings
 from app.core.errors import AppError, ErrorCode
 from app.core.limits import limiter
 from app.core.money import available
-from app.db.tables import Key, Ledger, Wallet
+from app.db.tables import Auction, Item, Key, Ledger, Wallet
 
 
-def wallet_view(wallet: Wallet) -> dict:
+def _money(cents: int) -> dict:
+    return {"cents": cents, "currency": "USD"}
+
+
+def wallet_view(session: Session, wallet: Wallet) -> dict:
+    commitments: list[dict] = []
+    rows = session.scalars(
+        select(Auction).where(
+            Auction.current_leader_id == wallet.user_id,
+            Auction.status == "OPEN",
+        )
+    ).all()
+    for auction in rows:
+        item = session.get(Item, auction.item_id)
+        if item is None or auction.current_bid_cents is None:
+            continue
+        commitments.append(
+            {
+                "auction_id": str(auction.id),
+                "display_no": auction.display_no,
+                "reserved": _money(auction.current_bid_cents),
+                "title": item.title,
+            }
+        )
     return {
-        "available_cents": available(wallet.total_cents, wallet.committed_cents),
-        "committed_cents": wallet.committed_cents,
+        "available": _money(available(wallet.total_cents, wallet.committed_cents)),
+        "commitments": commitments,
+        "committed": _money(wallet.committed_cents),
         "currency": "USD",
-        "total_cents": wallet.total_cents,
+        "total": _money(wallet.total_cents),
     }
 
 
@@ -23,7 +47,7 @@ def get_wallet_for_user(session: Session, user_id: uuid.UUID) -> dict:
     wallet = session.scalar(select(Wallet).where(Wallet.user_id == user_id))
     if wallet is None:
         raise AppError(404, ErrorCode.NOT_FOUND, "Wallet not found")
-    return wallet_view(wallet)
+    return wallet_view(session, wallet)
 
 
 def deposit(
@@ -52,7 +76,7 @@ def deposit(
             raise AppError(409, ErrorCode.IDEMPOTENCY_KEY_REUSED, "Idempotency key reused")
         if existing.response_json:
             return existing.response_json
-        raise AppError(409, ErrorCode.OPERATION_PENDING, "Deposit still pending")
+        raise AppError(202, ErrorCode.OPERATION_PENDING, "Deposit still pending")
 
     operation_id = uuid.uuid4()
     session.execute(text("SET LOCAL lock_timeout = '5s'"))
@@ -75,7 +99,7 @@ def deposit(
             committed_delta_cents=0,
         )
     )
-    body = wallet_view(wallet)
+    body = wallet_view(session, wallet)
     session.add(
         Key(
             actor_id=user_id,
@@ -88,4 +112,4 @@ def deposit(
     )
     session.commit()
     session.refresh(wallet)
-    return wallet_view(wallet)
+    return wallet_view(session, wallet)

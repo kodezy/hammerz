@@ -17,7 +17,7 @@ from app.api.receipts import router as receipts_router
 from app.api.seller import router as seller_router
 from app.api.wallet import router as wallet_router
 from app.api.wins import router as wins_router
-from app.core.config import get_settings
+from app.core.config import get_settings, parse_cors_origins
 from app.core.errors import AppError, ErrorBody, ErrorCode
 from app.core.limits import limiter
 from app.db.session import get_session_factory
@@ -92,7 +92,7 @@ def create_app() -> FastAPI:
     async def auction_ws(websocket: WebSocket, auction_id: uuid.UUID):
         settings = get_settings()
         origin = websocket.headers.get("origin")
-        allowed = {urlparse(o).netloc for o in settings.cors_origins}
+        allowed = {urlparse(o).netloc for o in parse_cors_origins(settings.cors_origins)}
         if origin:
             if urlparse(origin).netloc not in allowed:
                 await websocket.accept()

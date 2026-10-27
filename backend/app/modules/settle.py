@@ -200,10 +200,22 @@ async def close_one(
 
             if deal_id:
                 slip_id = uuid.uuid4()
+                item = session.get(Item, auction.item_id)
+                meta = item.metadata_json if item else {}
+                begin = meta.get("object_begin_date") if isinstance(meta, dict) else None
                 snapshot = {
+                    "amount": {"cents": amount_cents, "currency": "USD"},
                     "amount_cents": amount_cents,
+                    "artist": item.artist if item else None,
                     "auction_id": str(auction_id),
                     "currency": "USD",
+                    "display_no": auction.display_no,
+                    "external_id": item.external_id if item else None,
+                    "object_begin_date": begin,
+                    "object_url": item.object_url if item else None,
+                    "public_code": f"HZ-2026-{auction.display_no:04d}",
+                    "settled_at": now.isoformat(),
+                    "title": item.title if item else "Lot",
                     "winner_alias": display_alias(auction_id, winner_id, "BIDDER"),
                 }
                 session.add(

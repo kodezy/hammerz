@@ -30,6 +30,18 @@ async def get_current_user(
     return current_user(session, credentials.credentials)
 
 
+async def get_optional_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    session: Session = Depends(get_db),
+) -> User | None:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        return None
+    try:
+        return current_user(session, credentials.credentials)
+    except AppError:
+        return None
+
+
 async def require_seller(user: User = Depends(get_current_user)) -> User:
     if user.role != "SELLER":
         raise AppError(403, ErrorCode.FORBIDDEN, "Seller access required")

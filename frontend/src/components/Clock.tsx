@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { msUntil } from '../lib/time'
+import { formatClockDigits, msUntil } from '../lib/time'
 
 export function Clock({
   endsAt,
@@ -36,12 +36,9 @@ export function Clock({
   if (ms <= 0) {
     return <span className="font-medium text-warning">Finalizing</span>
   }
-  const totalSec = Math.floor(ms / 1000)
-  const m = Math.floor(totalSec / 60)
-  const s = totalSec % 60
   return (
-    <span className="font-mono text-lg tabular-nums">
-      {m}:{s.toString().padStart(2, '0')}
+    <span className="font-display text-4xl tabular-nums tracking-wide text-text">
+      {formatClockDigits(ms)}
     </span>
   )
 }

@@ -1,5 +1,8 @@
+from typing import Annotated
+
+from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import client_ip, get_current_user
@@ -12,15 +15,26 @@ from app.modules import auth as auth_module
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
+def _email(value: str) -> str:
+    try:
+        parsed = validate_email(value.strip(), check_deliverability=False, test_environment=True)
+    except EmailNotValidError as exc:
+        raise ValueError(str(exc)) from exc
+    return parsed.normalized
+
+
+Email = Annotated[str, AfterValidator(_email)]
+
+
 class RegisterBody(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    email: EmailStr
+    email: Email
     password: str = Field(min_length=8, max_length=128)
 
 
 class LoginBody(BaseModel):
-    email: EmailStr
+    email: Email
     password: str
 
 

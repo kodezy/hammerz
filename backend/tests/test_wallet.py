@@ -7,7 +7,7 @@ def test_get_wallet_bidder(client, bidder_token):
     r = client.get("/api/v1/wallet", headers=auth_headers(bidder_token))
     assert r.status_code == 200
     assert r.json()["currency"] == "USD"
-    assert r.json()["total_cents"] == 0
+    assert r.json()["total"]["cents"] == 0
 
 
 def test_seller_forbidden(client, seller_token):
@@ -23,8 +23,8 @@ def test_deposit_increases_balance(client, bidder_token):
         json={"amount_cents": 5000},
     )
     assert r.status_code == 200
-    assert r.json()["total_cents"] == 5000
-    assert r.json()["available_cents"] == 5000
+    assert r.json()["total"]["cents"] == 5000
+    assert r.json()["available"]["cents"] == 5000
 
 
 def test_deposit_idempotent_retry(client, bidder_token):
@@ -33,7 +33,7 @@ def test_deposit_idempotent_retry(client, bidder_token):
     first = client.post("/api/v1/wallet/deposits", headers=headers, json={"amount_cents": 1000})
     second = client.post("/api/v1/wallet/deposits", headers=headers, json={"amount_cents": 1000})
     assert first.json() == second.json()
-    assert second.json()["total_cents"] == 1000
+    assert second.json()["total"]["cents"] == 1000
 
 
 def test_deposit_key_reused_different_body(client, bidder_token):

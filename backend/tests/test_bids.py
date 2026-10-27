@@ -142,12 +142,12 @@ def test_outbid_releases_previous_reserve(
     _deposit(client, bidder2_token, 50_000)
     _bid(client, bidder_token, aid, 10_000)
     w1 = client.get("/api/v1/wallet", headers=auth_headers(bidder_token)).json()
-    assert w1["committed_cents"] == 10_000
+    assert w1["committed"]["cents"] == 10_000
     _bid(client, bidder2_token, aid, 10_500)
     w1 = client.get("/api/v1/wallet", headers=auth_headers(bidder_token)).json()
-    assert w1["committed_cents"] == 0
+    assert w1["committed"]["cents"] == 0
     w2 = client.get("/api/v1/wallet", headers=auth_headers(bidder2_token)).json()
-    assert w2["committed_cents"] == 10_500
+    assert w2["committed"]["cents"] == 10_500
 
 
 def test_concurrent_bids_one_leader(

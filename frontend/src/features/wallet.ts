@@ -1,10 +1,18 @@
 import { api } from '../lib/http'
 import type { Money } from '../lib/types'
 
+export type WalletCommitment = {
+  auction_id: string
+  display_no: number
+  title: string
+  reserved: Money
+}
+
 export type WalletSnapshot = {
   total: Money
   committed: Money
   available: Money
+  commitments?: WalletCommitment[]
   confirmation_pending?: boolean
 }
 

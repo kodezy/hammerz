@@ -7,10 +7,6 @@ export function setAuthToken(t: string | null): void {
   token = t
 }
 
-export function getAuthToken(): string | null {
-  return token
-}
-
 export function setUnauthorizedHandler(fn: () => void): void {
   onUnauthorized = fn
 }

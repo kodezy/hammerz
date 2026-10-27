@@ -1,12 +1,75 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useSession } from '../app/session'
-import { Card } from '../components/Card'
+import { AuctionListRow } from '../components/AuctionListRow'
+import { ButtonLink } from '../components/Button'
 import { Money } from '../components/Money'
+import { PageHeading } from '../components/PageHeading'
+import { PositionBadge } from '../components/PositionBadge'
+import { StatusBadge } from '../components/StatusBadge'
+import { TabNav } from '../components/TabNav'
 import { api } from '../lib/http'
+import type { DisplayStatus, Money as MoneyType, Position } from '../lib/types'
 
 type Tab = 'ACTIVE' | 'WON' | 'PAST'
+
+type WinRow = {
+  id: string
+  display_no: number
+  display_status: DisplayStatus
+  position: Position
+  item: { title: string; image_url: string | null }
+  current_bid: MoneyType | null
+  opening_bid: MoneyType
+  bid_count?: number
+  user_last_bid?: MoneyType
+  receipt_id?: string
+  cancel_reason?: string
+}
+
+function participationMeta(tab: Tab, row: WinRow) {
+  const position = row.position
+  if (tab === 'WON' && row.current_bid) {
+    return (
+      <p className="text-[13px] text-muted">
+        Winning bid: <Money value={row.current_bid} />
+      </p>
+    )
+  }
+  if (tab === 'ACTIVE' && position === 'LEADING' && row.current_bid) {
+    return (
+      <p className="text-[13px] text-muted">
+        Your bid: <Money value={row.current_bid} />
+      </p>
+    )
+  }
+  if (tab === 'ACTIVE' && position === 'OUTBID') {
+    if (row.user_last_bid && row.current_bid) {
+      return (
+        <p className="text-[13px] text-muted">
+          Your last bid: <Money value={row.user_last_bid} /> · Current bid:{' '}
+          <Money value={row.current_bid} />
+        </p>
+      )
+    }
+    return (
+      <p className="text-[13px] text-muted">
+        Your last bid and current bid are shown on the lot page.
+      </p>
+    )
+  }
+  if (tab === 'PAST' && row.user_last_bid) {
+    return (
+      <p className="text-[13px] text-muted">
+        Your last bid: <Money value={row.user_last_bid} /> ·
+        {position === 'CANCELLED' || row.display_status === 'CANCELLED'
+          ? ' No funds reserved'
+          : ' Past participation'}
+      </p>
+    )
+  }
+  return null
+}
 
 export function Wins() {
   const { user } = useSession()
@@ -15,7 +78,7 @@ export function Wins() {
     queryKey: ['wins', tab],
     queryFn: () =>
       api<{
-        items: Record<string, unknown>[]
+        items: WinRow[]
         counts: { active: number; won: number; past: number }
       }>(`/me/bids-and-wins?tab=${tab}&limit=20`),
     enabled: !!user && user.role === 'BIDDER',
@@ -25,66 +88,61 @@ export function Wins() {
     return <p className="text-muted">Sign in as a bidder to view participations.</p>
   }
 
+  const counts = q.data?.counts
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'ACTIVE', label: 'Active bids' },
-    { key: 'WON', label: 'Won' },
-    { key: 'PAST', label: 'Past auctions' },
+    { key: 'ACTIVE', label: `Active bids${counts ? ` (${counts.active})` : ''}` },
+    { key: 'WON', label: `Won${counts ? ` (${counts.won})` : ''}` },
+    { key: 'PAST', label: `Past${counts ? ` (${counts.past})` : ''}` },
   ]
 
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-semibold">My Bids &amp; Wins</h1>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`rounded-lg px-3 py-2 text-sm ${
-              tab === t.key ? 'bg-action text-on-action' : 'border border-border'
-            }`}
-          >
-            {t.label}
-            {q.data?.counts && (
-              <span className="ml-1">
-                (
-                {t.key === 'ACTIVE'
-                  ? q.data.counts.active
-                  : t.key === 'WON'
-                    ? q.data.counts.won
-                    : q.data.counts.past}
-                )
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-      {q.isLoading && <p>Loading…</p>}
+    <div className="space-y-8">
+      <PageHeading
+        title="My Bids & Wins"
+        subtitle="Follow your bids, revisit results and collect receipts."
+      />
+      <TabNav tabs={tabs} active={tab} onChange={setTab} />
+      {q.isLoading && <p className="text-muted">Loading…</p>}
       {q.data?.items.length === 0 && <p className="text-muted">No items in this tab.</p>}
-      <ul className="space-y-3">
+      <ul className="flex flex-col gap-4">
         {q.data?.items.map((row) => {
-          const id = String(row.id)
-          const displayNo = row.display_no as number
-          const title = (row.item as { title: string })?.title
+          const amount = row.current_bid ?? row.opening_bid
+          const count = row.bid_count ?? 0
+          const receiptId = row.receipt_id
           return (
-            <li key={id}>
-              <Card>
-                <Link to={`/lots/${id}`} className="font-medium text-brand hover:underline">
-                  Lot {String(displayNo).padStart(3, '0')}: {title}
-                </Link>
-                <p className="text-sm text-muted">Position: {String(row.position)}</p>
-                {'current_bid' in row && row.current_bid != null ? (
-                  <p className="text-sm">
-                    Current <Money value={row.current_bid as { cents: number; currency: 'USD' }} />
-                  </p>
-                ) : null}
-                {row.receipt_id ? (
-                  <Link to={`/receipts/${String(row.receipt_id)}`} className="text-sm text-brand">
-                    View receipt
-                  </Link>
-                ) : null}
-              </Card>
-            </li>
+            <AuctionListRow
+              key={row.id}
+              displayStatus={row.display_status}
+              displayNo={row.display_no}
+              title={row.item.title}
+              imageUrl={row.item.image_url}
+              amount={amount}
+              bidCount={count}
+              badges={
+                <>
+                  <StatusBadge status={row.display_status} variant="list" />
+                  <PositionBadge position={row.position} />
+                </>
+              }
+              meta={participationMeta(tab, row)}
+              actions={
+                <>
+                  <ButtonLink to={`/lots/${row.id}`} className="w-full">
+                    View auction
+                  </ButtonLink>
+                  {receiptId ? (
+                    <ButtonLink to={`/receipts/${receiptId}`} className="w-full">
+                      View receipt
+                    </ButtonLink>
+                  ) : null}
+                  {tab === 'PAST' && row.cancel_reason ? (
+                    <ButtonLink to={`/lots/${row.id}`} className="w-full">
+                      View reason
+                    </ButtonLink>
+                  ) : null}
+                </>
+              }
+            />
           )
         })}
       </ul>

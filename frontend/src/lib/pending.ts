@@ -20,20 +20,27 @@ export function savePending(actorId: string, record: PendingRecord): void {
   }
 }
 
-export function loadPending(actorId: string, key: string): PendingRecord | null {
-  try {
-    const raw = localStorage.getItem(storageKey(actorId, key))
-    if (!raw) return null
-    return JSON.parse(raw) as PendingRecord
-  } catch {
-    return null
-  }
-}
-
 export function clearPending(actorId: string, key: string): void {
   try {
     localStorage.removeItem(storageKey(actorId, key))
   } catch {
     /* ignore */
   }
+}
+
+export function listPending(actorId: string): PendingRecord[] {
+  const prefix = storageKey(actorId, '')
+  const out: PendingRecord[] = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k?.startsWith(prefix)) continue
+      const raw = localStorage.getItem(k)
+      if (!raw) continue
+      out.push(JSON.parse(raw) as PendingRecord)
+    }
+  } catch {
+    /* ignore */
+  }
+  return out
 }

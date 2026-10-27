@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import parse_idempotency_key, require_bidder, require_seller
+from app.api.deps import get_optional_user, parse_idempotency_key, require_bidder, require_seller
 from app.core.canon import request_fingerprint
 from app.core.money import MoneyCents
 from app.db.session import get_db
@@ -60,7 +60,7 @@ async def create_auction_route(
 
 @router.get("")
 def list_auctions_route(
-    status: Literal["LIVE", "SCHEDULED", "ENDED"] | None = Query(None),
+    status: Literal["LIVE", "SCHEDULED", "ENDED"] = Query("LIVE"),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     session: Session = Depends(get_db),
@@ -72,8 +72,16 @@ def list_auctions_route(
 def get_auction_route(
     auction_id: uuid.UUID,
     session: Session = Depends(get_db),
+    viewer: User | None = Depends(get_optional_user),
 ) -> dict:
-    return auctions_module.get_auction(session, auction_id)
+    from app.db.tables import Auction
+
+    snap = auctions_module.get_auction(session, auction_id)
+    if viewer is not None and viewer.role == "SELLER":
+        auction = session.get(Auction, auction_id)
+        if auction is not None and auction.seller_id == viewer.id:
+            snap["viewer_is_owner"] = True
+    return snap
 
 
 class PlaceBidBody(BaseModel):
@@ -197,4 +205,11 @@ def audit_route(
         after_sequence=after_sequence,
         limit=limit,
     )
-    return {**events, "verification": summary}
+    from sqlalchemy import func, select
+
+    from app.db.tables import Bid
+
+    bid_count = session.scalar(
+        select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id)
+    ) or 0
+    return {**events, "bid_count": int(bid_count), "verification": summary}

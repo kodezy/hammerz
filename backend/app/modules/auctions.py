@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorCode
-from app.db.tables import Auction, Item, User
+from app.db.tables import Auction, Bid, Deal, Item, Slip, User
 from app.modules import audit as audit_module
 from app.modules.alias import display_alias
 from app.modules.catalog import fetch_object
@@ -48,10 +48,27 @@ def auction_snapshot(
     if now is None:
         now = _db_now(session)
     display_status = derive_display_status(auction, now)
+    bid_count = session.scalar(
+        select(func.count()).select_from(Bid).where(Bid.auction_id == auction.id)
+    ) or 0
+    leader_alias = None
+    if auction.current_leader_id is not None:
+        leader = session.get(User, auction.current_leader_id)
+        if leader is not None:
+            leader_alias = display_alias(auction.id, leader.id, leader.role)
+    receipt_id = None
+    if auction.status == "CLOSED":
+        deal = session.scalar(select(Deal).where(Deal.auction_id == auction.id))
+        if deal is not None:
+            slip = session.scalar(select(Slip).where(Slip.settlement_id == deal.id))
+            if slip is not None:
+                receipt_id = str(slip.id)
     return {
+        "bid_count": int(bid_count),
         "cancel_reason": auction.cancel_reason,
         "currency": "USD",
         "current_bid": _money(auction.current_bid_cents),
+        "leader_alias": leader_alias,
         "display_no": auction.display_no,
         "display_status": display_status,
         "ends_at": auction.ends_at,
@@ -63,12 +80,14 @@ def auction_snapshot(
             "external_id": item.external_id,
             "image_url": item.image_url,
             "is_public_domain": item.is_public_domain,
+            "object_begin_date": (item.metadata_json or {}).get("object_begin_date"),
             "object_url": item.object_url,
             "provider": item.provider,
             "title": item.title,
         },
         "minimum_increment": _money(auction.minimum_increment_cents),
         "opening_bid": _money(auction.opening_bid_cents),
+        "receipt_id": receipt_id,
         "seller_alias": display_alias(auction.id, seller.id, seller.role),
         "server_time": now,
         "starts_at": auction.starts_at,
@@ -86,6 +105,8 @@ async def create_auction(
     minimum_increment_cents: int,
     starts_at: datetime,
     ends_at: datetime,
+    *,
+    catalog_fallback: bool = False,
 ) -> Auction:
     if journal.blocked:
         raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "Audit journal unavailable")
@@ -100,22 +121,30 @@ async def create_auction(
     if starts_at < now:
         raise AppError(422, ErrorCode.VALIDATION_ERROR, "starts_at must not be in the past")
 
-    catalog = await fetch_object(object_id)
+    catalog = await fetch_object(object_id, allow_demo_snapshot=catalog_fallback)
     operation_id = uuid.uuid4()
     auction_id = uuid.uuid4()
 
-    item = Item(
-        provider=catalog["provider"],
-        external_id=catalog["external_id"],
-        title=catalog["title"],
-        artist=catalog.get("artist"),
-        description=catalog.get("description"),
-        image_url=catalog.get("image_url"),
-        object_url=catalog.get("object_url"),
-        is_public_domain=catalog.get("is_public_domain"),
-        attribution=catalog.get("attribution"),
-        metadata_json=catalog,
+    item = session.scalar(
+        select(Item).where(
+            Item.provider == catalog["provider"],
+            Item.external_id == catalog["external_id"],
+        )
     )
+    new_item = item is None
+    if item is None:
+        item = Item(
+            provider=catalog["provider"],
+            external_id=catalog["external_id"],
+            title=catalog["title"],
+            artist=catalog.get("artist"),
+            description=catalog.get("description"),
+            image_url=catalog.get("image_url"),
+            object_url=catalog.get("object_url"),
+            is_public_domain=catalog.get("is_public_domain"),
+            attribution=catalog.get("attribution"),
+            metadata_json=catalog,
+        )
 
     display_no = session.scalar(select(func.coalesce(func.max(Auction.display_no), 0))) + 1
     seller = session.get(User, seller_id)
@@ -163,7 +192,8 @@ async def create_auction(
         )
         try:
             session.execute(text("SET LOCAL lock_timeout = '5s'"))
-            session.add(item)
+            if new_item:
+                session.add(item)
             session.flush()
             auction = Auction(
                 id=auction_id,

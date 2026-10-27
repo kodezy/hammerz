@@ -4,9 +4,10 @@ os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+psycopg://hammerz:hammerz@127.0.0.1:5432/hammerz",
 )
-os.environ.setdefault("JWT_SECRET", "test-jwt-secret")
-os.environ.setdefault("HMAC_SECRET", "test-hmac-secret")
-os.environ.setdefault("ALIAS_SECRET", "test-alias-secret")
+# Override .env placeholders so pytest always uses valid secrets.
+os.environ["JWT_SECRET"] = "test-jwt-secret-32-characters-min"
+os.environ["HMAC_SECRET"] = "test-hmac-secret-32-characters-min"
+os.environ["ALIAS_SECRET"] = "test-alias-secret-32-characters-min"
 os.environ.setdefault("DEPLOYMENT_ID", "hammerz-test")
 
 import asyncio
@@ -94,19 +95,19 @@ def db_session(engine: Engine) -> Generator[Session, None, None]:
 
 @pytest.fixture
 def seller_token(db_session: Session) -> str:
-    user = asyncio.run(provision(db_session, "seller@hammerz.test", "Seller-Eval-2026!", "SELLER"))
+    user = asyncio.run(provision(db_session, "seller@hammerz.test", "Seller-Demo-2026!", "SELLER"))
     return issue_token(user.id, user.role)
 
 
 @pytest.fixture
 def bidder_token(db_session: Session) -> str:
-    user = asyncio.run(provision(db_session, "bidder@hammerz.test", "Bidder1-Eval-2026!", "BIDDER"))
+    user = asyncio.run(provision(db_session, "bidder@hammerz.test", "Bidder1-Demo-2026!", "BIDDER"))
     return issue_token(user.id, user.role)
 
 
 @pytest.fixture
 def bidder2_token(db_session: Session) -> str:
-    user = asyncio.run(provision(db_session, "bidder2@hammerz.test", "Bidder2-Eval-2026!", "BIDDER"))
+    user = asyncio.run(provision(db_session, "bidder2@hammerz.test", "Bidder2-Demo-2026!", "BIDDER"))
     return issue_token(user.id, user.role)
 
 

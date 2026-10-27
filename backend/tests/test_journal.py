@@ -58,3 +58,22 @@ def test_rewrite_detected(tmp_path):
     j2 = Journal(tmp_path, secret=b"secret-key", deployment_id="dep")
     j2.open()
     assert j2.blocked
+
+
+def test_stale_instance_continues_peer_chain(tmp_path):
+    secret = b"secret-key"
+    first = Journal(tmp_path, secret=secret, deployment_id="dep")
+    first.open()
+    second = Journal(tmp_path, secret=secret, deployment_id="dep")
+    second.open()
+    op1 = uuid.uuid4()
+    first.append_prepare({"operation_id": str(op1), "event": {"type": "A"}})
+    first.append_commit(op1)
+    op2 = uuid.uuid4()
+    second.append_prepare({"operation_id": str(op2), "event": {"type": "B"}})
+    second.append_commit(op2)
+    check = Journal(tmp_path, secret=secret, deployment_id="dep")
+    check.open()
+    assert not check.blocked
+    assert check.has_commit(op1)
+    assert check.has_commit(op2)

@@ -74,6 +74,17 @@ def bids_and_wins(
             continue
         snap = auctions_module.auction_snapshot(session, auction, item, seller, now)
         snap["position"] = participant_position(session, user_id, aid)["position"]
+        last_bid = session.scalar(
+            select(Bid)
+            .where(Bid.auction_id == aid, Bid.bidder_id == user_id)
+            .order_by(Bid.sequence.desc())
+            .limit(1)
+        )
+        if last_bid is not None:
+            snap["user_last_bid"] = {
+                "cents": last_bid.amount_cents,
+                "currency": "USD",
+            }
         if _tab_match(session, auction, user_id, "ACTIVE", now):
             counts["active"] += 1
         if _tab_match(session, auction, user_id, "WON", now):

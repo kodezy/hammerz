@@ -12,11 +12,8 @@ import type { Role, User } from '../lib/types'
 
 type SessionState = {
   user: User | null
-  loading: boolean
-  token: string | null
   login: (email: string, password: string) => Promise<User>
   logout: () => void
-  refreshMe: () => Promise<void>
 }
 
 const SessionContext = createContext<SessionState | null>(null)
@@ -44,23 +41,12 @@ export function defaultHome(role: Role | null): string {
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
 
   const logout = useCallback(() => {
     setToken(null)
     setUser(null)
     setAuthToken(null)
   }, [])
-
-  const refreshMe = useCallback(async () => {
-    if (!token) {
-      setUser(null)
-      return
-    }
-    setAuthToken(token)
-    const me = await api<User>('/auth/me')
-    setUser(me)
-  }, [token])
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -78,16 +64,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     setAuthToken(token)
     let cancelled = false
-    setLoading(true)
     api<User>('/auth/me')
       .then((me) => {
         if (!cancelled) setUser(me)
       })
       .catch(() => {
         if (!cancelled) logout()
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
@@ -107,8 +89,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, token, login, logout, refreshMe }),
-    [user, loading, token, login, logout, refreshMe],
+    () => ({ user, login, logout }),
+    [user, login, logout],
   )
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>

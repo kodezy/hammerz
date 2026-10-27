@@ -489,4 +489,11 @@ def participant_position(session: Session, user_id: uuid.UUID, auction_id: uuid.
         position = "LEADING"
     else:
         position = "OUTBID"
-    return {"auction_id": str(auction_id), "position": position}
+    reserved_cents = None
+    if position == "LEADING" and auction.current_bid_cents is not None:
+        reserved_cents = auction.current_bid_cents
+    return {
+        "auction_id": str(auction_id),
+        "position": position,
+        "reserved_cents": reserved_cents,
+    }
