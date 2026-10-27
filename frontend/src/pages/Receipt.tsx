@@ -1,13 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 import { useToast } from '../app/toast'
-import { Banner } from '../components/Banner'
-import { Button, ButtonLink } from '../components/Button'
+import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { StatusBadge } from '../components/StatusBadge'
 import { Money } from '../components/Money'
-import { getReceipt } from '../features/audit'
-import { integrityLabel } from '../lib/display'
+import { getReceipt } from '../features/receipts'
 import { receiptCatalogLine } from '../lib/lotCopy'
 import { formatBidTimestamp } from '../lib/time'
 
@@ -19,8 +17,6 @@ export function Receipt() {
     queryFn: () => getReceipt(id),
   })
   const r = q.data
-  const integrity = r?.integrity as { status?: string; checked_at?: string } | undefined
-  const auctionId = r?.auction_id as string | undefined
   const displayNo = r?.display_no as number | undefined
   const publicCode = r?.public_code as string | undefined
 
@@ -53,24 +49,6 @@ export function Receipt() {
       <h1 className="font-display text-4xl font-normal leading-tight text-text">
         Auction receipt · {code} · {lotLabel}
       </h1>
-      {integrity && (
-        <Banner
-          variant={
-            integrity.status === 'VERIFIED'
-              ? 'success'
-              : integrity.status === 'TAMPERED'
-                ? 'danger'
-                : 'warning'
-          }
-        >
-          Integrity · {integrityLabel(integrity.status ?? '')}
-          {integrity.checked_at && (
-            <span className="mt-1 block text-xs opacity-90">
-              Checked {formatBidTimestamp(integrity.checked_at)}.
-            </span>
-          )}
-        </Banner>
-      )}
       <Card className="space-y-3">
         <p className="font-display text-2xl text-text">{String(r.title)}</p>
         <p className="text-sm text-muted">
@@ -90,11 +68,6 @@ export function Receipt() {
           <p className="text-sm text-muted">Settled {formatBidTimestamp(String(r.settled_at))}</p>
         ) : null}
       </Card>
-      {auctionId && (
-        <ButtonLink to={`/lots/${auctionId}/audit`} className="w-full">
-          View public audit
-        </ButtonLink>
-      )}
       <div className="space-y-2">
         <Button type="button" onClick={share} className="w-full">
           Copy share link

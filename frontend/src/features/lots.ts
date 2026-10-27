@@ -94,13 +94,3 @@ export async function sellerAuctions(status = 'ALL') {
     counts?: { live: number; scheduled: number; cancelled: number; ended: number }
   }>(`/seller/auctions?status=${status}&limit=20`)
 }
-
-export type AuditPage = {
-  items: { sequence: number; type: string; payload?: Record<string, unknown> }[]
-  bid_count?: number
-  verification: { status: string; checked_at?: string }
-}
-
-export async function fetchAudit(auctionId: string) {
-  return api<AuditPage>(`/auctions/${auctionId}/audit?limit=50`)
-}

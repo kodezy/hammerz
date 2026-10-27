@@ -22,9 +22,3 @@ export function lotStatusLabel(status: DisplayStatus | string): string {
       return String(status)
   }
 }
-
-export function integrityLabel(status: string): string {
-  if (status === 'VERIFIED') return 'Verified'
-  if (status === 'TAMPERED') return 'Changes detected'
-  return 'Unable to verify'
-}

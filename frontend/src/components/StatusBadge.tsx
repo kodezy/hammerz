@@ -16,7 +16,6 @@ const pillStyles: Record<string, string> = {
   CLOSED: 'bg-muted/15 text-muted',
   CANCELLED: 'bg-danger-soft text-danger',
   SETTLED: 'bg-success-soft text-success',
-  VERIFIED: 'bg-success-soft text-success',
 }
 
 export function StatusBadge({

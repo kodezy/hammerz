@@ -399,9 +399,6 @@ export function Lot() {
               )}
             </div>
           )}
-          <ButtonLink to={`/lots/${id}/audit`} className="w-full">
-            View public audit
-          </ButtonLink>
         </Card>
       </div>
       {!cancelled && (
