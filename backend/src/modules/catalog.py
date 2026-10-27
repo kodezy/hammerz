@@ -8,6 +8,8 @@ from src.core.errors import AppError, ErrorCode
 
 MET_SEARCH = "https://collectionapi.metmuseum.org/public/collection/v1.1/search"
 MET_OBJECT = "https://collectionapi.metmuseum.org/public/collection/v1/objects/{object_id}"
+# Met returns 403 for httpx's default python-httpx User-Agent.
+MET_HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Hammerz/1.0)"}
 SEARCH_TIMEOUT = 5.0
 DETAIL_CONCURRENCY = 4
 CACHE_TTL = 60.0
@@ -54,7 +56,7 @@ async def search_catalog(q: str, offset: int, limit: int) -> dict[str, Any]:
     if cached:
         return cached
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(headers=MET_HTTP_HEADERS) as client:
         search_url = MET_SEARCH + "?" + str(httpx.QueryParams({"hasImages": "true", "q": q}))
         try:
             search_data = await _get_json(client, search_url)
@@ -80,16 +82,9 @@ async def search_catalog(q: str, offset: int, limit: int) -> dict[str, Any]:
 
         details = await asyncio.gather(*(fetch_one(int(i)) for i in slice_ids))
         items = [d for d in details if d is not None]
-        # prefer public domain with image — already filtered; sort PD first
         items.sort(key=lambda x: (not x.get("is_public_domain", False), x.get("external_id", "")))
 
-    result = {
-        "has_more": offset + limit < total,
-        "items": items,
-        "limit": limit,
-        "offset": offset,
-        "total": total,
-    }
+    result = {"has_more": offset + limit < total, "items": items, "limit": limit, "offset": offset, "total": total}
     _cache_set(cache_key, result)
     return result
 
@@ -143,7 +138,7 @@ def _map_object(data: dict[str, Any]) -> dict[str, Any]:
 async def fetch_object(object_id: int, *, allow_demo_snapshot: bool = False) -> dict[str, Any]:
     if object_id <= 0:
         raise AppError(422, ErrorCode.VALIDATION_ERROR, "Invalid object id")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(headers=MET_HTTP_HEADERS) as client:
         try:
             data = await _get_json(client, MET_OBJECT.format(object_id=object_id))
         except AppError:
