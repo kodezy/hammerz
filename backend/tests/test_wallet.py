@@ -46,11 +46,7 @@ def test_deposit_key_reused_different_body(client, bidder_token):
 
 
 def test_deposit_missing_key_422(client, bidder_token):
-    r = client.post(
-        "/api/v1/wallet/deposits",
-        headers=auth_headers(bidder_token),
-        json={"amount_cents": 1000},
-    )
+    r = client.post("/api/v1/wallet/deposits", headers=auth_headers(bidder_token), json={"amount_cents": 1000})
     assert r.status_code == 422
 
 

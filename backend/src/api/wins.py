@@ -52,13 +52,7 @@ def _tab_match(session: Session, auction: Auction, user_id: uuid.UUID, tab: Tab,
     return False
 
 
-def bids_and_wins(
-    session: Session,
-    user_id: uuid.UUID,
-    tab: Tab,
-    offset: int,
-    limit: int,
-) -> dict:
+def bids_and_wins(session: Session, user_id: uuid.UUID, tab: Tab, offset: int, limit: int) -> dict:
     now = session.scalar(select(func.clock_timestamp()))
     auction_ids = _user_auction_ids(session, user_id)
     snapshots: list[dict] = []
@@ -75,16 +69,10 @@ def bids_and_wins(
         snap = auctions_module.auction_snapshot(session, auction, item, seller, now)
         snap["position"] = participant_position(session, user_id, aid)["position"]
         last_bid = session.scalar(
-            select(Bid)
-            .where(Bid.auction_id == aid, Bid.bidder_id == user_id)
-            .order_by(Bid.sequence.desc())
-            .limit(1)
+            select(Bid).where(Bid.auction_id == aid, Bid.bidder_id == user_id).order_by(Bid.sequence.desc()).limit(1)
         )
         if last_bid is not None:
-            snap["user_last_bid"] = {
-                "cents": last_bid.amount_cents,
-                "currency": "USD",
-            }
+            snap["user_last_bid"] = {"cents": last_bid.amount_cents, "currency": "USD"}
         if _tab_match(session, auction, user_id, "ACTIVE", now):
             counts["active"] += 1
         if _tab_match(session, auction, user_id, "WON", now):
@@ -109,9 +97,7 @@ def bids_and_wins(
 
 @router.get("/auctions/{auction_id}/status")
 def auction_participant_status(
-    auction_id: uuid.UUID,
-    user: User = Depends(require_bidder),
-    session: Session = Depends(get_db),
+    auction_id: uuid.UUID, user: User = Depends(require_bidder), session: Session = Depends(get_db)
 ) -> dict:
     return participant_position(session, user.id, auction_id)
 

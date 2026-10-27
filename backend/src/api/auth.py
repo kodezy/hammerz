@@ -50,11 +50,7 @@ class TokenOut(BaseModel):
 
 
 @router.post("/register", status_code=201, response_model=UserOut)
-async def register(
-    body: RegisterBody,
-    request: Request,
-    session: Session = Depends(get_db),
-) -> UserOut:
+async def register(body: RegisterBody, request: Request, session: Session = Depends(get_db)) -> UserOut:
     ip = client_ip(request)
     if not limiter.allow(f"register:{ip}", 5):
         raise AppError(429, ErrorCode.RATE_LIMITED, "Too many registration attempts")
@@ -63,11 +59,7 @@ async def register(
 
 
 @router.post("/login", response_model=TokenOut)
-async def login(
-    body: LoginBody,
-    request: Request,
-    session: Session = Depends(get_db),
-) -> TokenOut:
+async def login(body: LoginBody, request: Request, session: Session = Depends(get_db)) -> TokenOut:
     ip = client_ip(request)
     if not limiter.allow(f"login:{ip}", 10):
         raise AppError(429, ErrorCode.RATE_LIMITED, "Too many login attempts")

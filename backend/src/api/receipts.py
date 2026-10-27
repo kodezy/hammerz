@@ -17,9 +17,7 @@ def get_journal(request: Request) -> Journal:
 
 @router.get("/{receipt_id}")
 async def get_receipt(
-    receipt_id: uuid.UUID,
-    session: Session = Depends(get_db),
-    journal: Journal = Depends(get_journal),
+    receipt_id: uuid.UUID, session: Session = Depends(get_db), journal: Journal = Depends(get_journal)
 ) -> dict:
     from src.db.tables import Deal, Slip
 

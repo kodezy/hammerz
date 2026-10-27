@@ -9,16 +9,9 @@ from src.db.tables import Auction
 
 
 def _mock_met(respx_mock):
-    respx_mock.get(
-        "https://collectionapi.metmuseum.org/public/collection/v1/objects/436535"
-    ).mock(
+    respx_mock.get("https://collectionapi.metmuseum.org/public/collection/v1/objects/436535").mock(
         return_value=httpx.Response(
-            200,
-            json={
-                "objectID": 436535,
-                "title": "Settle Lot",
-                "primaryImage": "https://example.com/img.jpg",
-            },
+            200, json={"objectID": 436535, "title": "Settle Lot", "primaryImage": "https://example.com/img.jpg"}
         )
     )
 
@@ -36,22 +29,11 @@ def test_close_without_bids(db_session, tmp_path, monkeypatch, respx_mock):
     journal = Journal(settings.audit_dir, settings.hmac_secret.encode(), settings.deployment_id)
     journal.open(db_has_auctions=False)
     _mock_met(respx_mock)
-    seller = asyncio.run(
-        provision(db_session, "settle-seller@test.com", "password123!", "SELLER")
-    )
+    seller = asyncio.run(provision(db_session, "settle-seller@test.com", "password123!", "SELLER"))
     starts = datetime.now(UTC) + timedelta(hours=1)
     ends = starts + timedelta(hours=2)
     auction = asyncio.run(
-        auctions_module.create_auction(
-            db_session,
-            journal,
-            seller.id,
-            436535,
-            10_000,
-            500,
-            starts,
-            ends,
-        )
+        auctions_module.create_auction(db_session, journal, seller.id, 436535, 10_000, 500, starts, ends)
     )
     now = db_session.scalar(select(func.clock_timestamp()))
     auction.starts_at = now - timedelta(seconds=5)

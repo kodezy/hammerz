@@ -26,21 +26,13 @@ DEMO_PASSWORDS = {
     SEED_BIDDER1: "Bidder1-Demo-2026!",
     SEED_BIDDER2: "Bidder2-Demo-2026!",
 }
-OPENING = {
-    SEED_BIDDER1: 1_240_000,
-    SEED_BIDDER2: 1_000_000,
-    SEED_SELLER: 0,
-}
+OPENING = {SEED_BIDDER1: 1_240_000, SEED_BIDDER2: 1_000_000, SEED_SELLER: 0}
 SEED_KEY_NS = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 
 def _journal() -> Journal:
     settings = get_settings()
-    journal = Journal(
-        settings.audit_dir,
-        settings.hmac_secret.encode(),
-        settings.deployment_id,
-    )
+    journal = Journal(settings.audit_dir, settings.hmac_secret.encode(), settings.deployment_id)
     with get_session_factory()() as session:
         has = session.scalar(select(func.count()).select_from(Auction)) or 0
     journal.open(db_has_auctions=has > 0)
@@ -98,12 +90,7 @@ def _ensure_opening(session, user: User, cents: int) -> None:
     wallet = session.scalar(select(Wallet).where(Wallet.user_id == user.id))
     if wallet is None:
         return
-    existing = session.scalar(
-        select(Ledger).where(
-            Ledger.wallet_id == wallet.id,
-            Ledger.type == "OPENING_BALANCE",
-        )
-    )
+    existing = session.scalar(select(Ledger).where(Ledger.wallet_id == wallet.id, Ledger.type == "OPENING_BALANCE"))
     if existing:
         return
     if cents <= 0:
@@ -135,26 +122,11 @@ async def run_seed(*, ensure_live: bool = False) -> None:
         bidder1_id = bidder1.id
         bidder2_id = bidder2.id
 
-    async def _seed_bids(
-        session,
-        auction_id: uuid.UUID,
-        label: str,
-        pairs: list[tuple[User, int]],
-    ) -> None:
+    async def _seed_bids(session, auction_id: uuid.UUID, label: str, pairs: list[tuple[User, int]]) -> None:
         for i, (bidder, amount) in enumerate(pairs):
-            fp = request_fingerprint(
-                "POST",
-                f"/api/v1/auctions/{auction_id}/bids",
-                {"amount_cents": amount},
-            )
+            fp = request_fingerprint("POST", f"/api/v1/auctions/{auction_id}/bids", {"amount_cents": amount})
             await bids_module.place_bid(
-                session,
-                journal,
-                bidder.id,
-                auction_id,
-                amount,
-                uuid.uuid5(SEED_KEY_NS, f"{label}-bid:{i}"),
-                fp,
+                session, journal, bidder.id, auction_id, amount, uuid.uuid5(SEED_KEY_NS, f"{label}-bid:{i}"), fp
             )
 
     now = datetime.now(UTC)
@@ -199,35 +171,16 @@ async def run_seed(*, ensure_live: bool = False) -> None:
                             amount += 5_000
                         await _seed_bids(session, auction.id, "lot1", lot1)
                     elif display_no == 2:
-                        await _seed_bids(
-                            session,
-                            auction.id,
-                            "lot2",
-                            [(bidder2, 145_000), (bidder1, 150_000)],
-                        )
+                        await _seed_bids(session, auction.id, "lot2", [(bidder2, 145_000), (bidder1, 150_000)])
                 if kind == "settled" and auction.status == "OPEN":
                     await _seed_bids(
-                        session,
-                        auction.id,
-                        "lot3",
-                        [
-                            (bidder1, 230_000),
-                            (bidder2, 235_000),
-                            (bidder1, 240_000),
-                        ],
+                        session, auction.id, "lot3", [(bidder1, 230_000), (bidder2, 235_000), (bidder1, 240_000)]
                     )
                     await settle_module.close_one(session, journal, auction.id)
                     _apply_auction_window(session, auction, starts, ends)
                 if kind == "cancel" and auction.status == "OPEN":
                     await _seed_bids(
-                        session,
-                        auction.id,
-                        "lot5",
-                        [
-                            (bidder2, 100_000),
-                            (bidder1, 105_000),
-                            (bidder2, 110_000),
-                        ],
+                        session, auction.id, "lot5", [(bidder2, 100_000), (bidder1, 105_000), (bidder2, 110_000)]
                     )
                     ckey = uuid.uuid5(SEED_KEY_NS, "lot5-cancel")
                     fp = request_fingerprint(

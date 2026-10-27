@@ -7,9 +7,7 @@ from tests.conftest import auth_headers
 
 
 def _mock_met_object(respx_mock, object_id: int = 436535):
-    respx_mock.get(
-        f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{object_id}"
-    ).mock(
+    respx_mock.get(f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{object_id}").mock(
         return_value=httpx.Response(
             200,
             json={

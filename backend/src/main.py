@@ -26,17 +26,12 @@ from src.modules.journal import Journal
 from src.modules.settle import close_due_auctions
 from src.realtime.hub import Hub
 
-_ws_connections: dict[str, int] = {}
 _WS_CAP = 20
 
 
 def _build_journal() -> Journal:
     settings = get_settings()
-    journal = Journal(
-        settings.audit_dir,
-        settings.hmac_secret.encode(),
-        settings.deployment_id,
-    )
+    journal = Journal(settings.audit_dir, settings.hmac_secret.encode(), settings.deployment_id)
     db_has = False
     try:
         with get_session_factory()() as session:
@@ -96,9 +91,7 @@ def create_app() -> FastAPI:
         if origin:
             if urlparse(origin).netloc not in allowed:
                 await websocket.accept()
-                await websocket.send_json(
-                    {"type": "ws.error", "code": "WS_ORIGIN"},
-                )
+                await websocket.send_json({"type": "ws.error", "code": "WS_ORIGIN"})
                 await websocket.close()
                 return
         client_host = websocket.client.host if websocket.client else "unknown"

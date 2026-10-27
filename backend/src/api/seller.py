@@ -29,12 +29,14 @@ def list_seller_auctions(
     wallet = session.scalar(select(Wallet).where(Wallet.user_id == seller.id))
     total_received = 0
     if wallet:
-        total_received = session.scalar(
-            select(func.coalesce(func.sum(Ledger.total_delta_cents), 0)).where(
-                Ledger.wallet_id == wallet.id,
-                Ledger.type == "SETTLEMENT_CREDIT",
+        total_received = (
+            session.scalar(
+                select(func.coalesce(func.sum(Ledger.total_delta_cents), 0)).where(
+                    Ledger.wallet_id == wallet.id, Ledger.type == "SETTLEMENT_CREDIT"
+                )
             )
-        ) or 0
+            or 0
+        )
 
     snapshots: list[dict] = []
     counts = {"all": 0, "cancelled": 0, "ended": 0, "live": 0, "scheduled": 0}

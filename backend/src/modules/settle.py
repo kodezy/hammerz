@@ -19,28 +19,18 @@ def _db_now(session: Session) -> datetime:
 
 
 def _next_event_sequence(session: Session, auction_id: uuid.UUID) -> int:
-    current = session.scalar(
-        select(func.coalesce(func.max(Event.sequence), 0)).where(Event.auction_id == auction_id)
-    )
+    current = session.scalar(select(func.coalesce(func.max(Event.sequence), 0)).where(Event.auction_id == auction_id))
     return int(current) + 1
 
 
 def _prev_event_hash(session: Session, auction_id: uuid.UUID) -> str:
     row = session.scalar(
-        select(Event.event_hash)
-        .where(Event.auction_id == auction_id)
-        .order_by(Event.sequence.desc())
-        .limit(1)
+        select(Event.event_hash).where(Event.auction_id == auction_id).order_by(Event.sequence.desc()).limit(1)
     )
     return row if row else audit_module.genesis_event_hash()
 
 
-async def close_one(
-    session: Session,
-    journal: Journal,
-    auction_id: uuid.UUID,
-    hub=None,
-) -> None:
+async def close_one(session: Session, journal: Journal, auction_id: uuid.UUID, hub=None) -> None:
     if journal.blocked:
         return
     if journal.pending_prepare() is not None:
@@ -56,14 +46,11 @@ async def close_one(
         if session.scalar(select(Deal).where(Deal.auction_id == auction_id)):
             return
         await asyncio.to_thread(
-            journal.append_prepare,
-            {"operation_id": str(operation_id), "event": {"type": "AUCTION_CLOSED"}},
+            journal.append_prepare, {"operation_id": str(operation_id), "event": {"type": "AUCTION_CLOSED"}}
         )
         try:
             session.execute(text("SET LOCAL lock_timeout = '5s'"))
-            auction = session.scalar(
-                select(Auction).where(Auction.id == auction_id).with_for_update()
-            )
+            auction = session.scalar(select(Auction).where(Auction.id == auction_id).with_for_update())
             if auction is None or auction.status != "OPEN":
                 session.rollback()
                 await asyncio.to_thread(journal.append_abort, operation_id)
@@ -160,9 +147,7 @@ async def close_one(
             event_sequence = _next_event_sequence(session, auction_id)
             prev_hash = _prev_event_hash(session, auction_id)
             seller = session.get(User, auction.seller_id)
-            alias = display_alias(
-                auction_id, auction.seller_id, seller.role if seller else "SELLER"
-            )
+            alias = display_alias(auction_id, auction.seller_id, seller.role if seller else "SELLER")
             occurred_at = datetime.now(UTC)
             extra: dict[str, Any] = {
                 "deal_id": str(deal_id) if deal_id else None,
@@ -219,12 +204,7 @@ async def close_one(
                     "winner_alias": display_alias(auction_id, winner_id, "BIDDER"),
                 }
                 session.add(
-                    Slip(
-                        id=slip_id,
-                        settlement_id=deal_id,
-                        snapshot_json=snapshot,
-                        close_event_hash=event_hash,
-                    )
+                    Slip(id=slip_id, settlement_id=deal_id, snapshot_json=snapshot, close_event_hash=event_hash)
                 )
                 payload["slip_id"] = str(slip_id)
                 payload["slip_public"] = str(slip_id)
@@ -238,9 +218,7 @@ async def close_one(
                 seller = session.get(User, auction.seller_id)
                 if item and seller:
                     now = _db_now(session)
-                    snap = auctions_module.auction_snapshot(
-                        session, auction, item, seller, now
-                    )
+                    snap = auctions_module.auction_snapshot(session, auction, item, seller, now)
                     await hub.publish(
                         str(auction_id),
                         {
@@ -262,12 +240,7 @@ async def close_due_auctions(journal: Journal, hub=None) -> None:
         return
     with get_session_factory()() as session:
         now = _db_now(session)
-        ids = session.scalars(
-            select(Auction.id).where(
-                Auction.status == "OPEN",
-                Auction.ends_at <= now,
-            )
-        ).all()
+        ids = session.scalars(select(Auction.id).where(Auction.status == "OPEN", Auction.ends_at <= now)).all()
     for aid in ids:
         with get_session_factory()() as session:
             await close_one(session, journal, aid, hub=hub)

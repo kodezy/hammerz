@@ -1,9 +1,6 @@
 import os
 
-os.environ.setdefault(
-    "DATABASE_URL",
-    "postgresql+psycopg://hammerz:hammerz@127.0.0.1:5432/hammerz",
-)
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://hammerz:hammerz@127.0.0.1:5432/hammerz")
 # Override .env placeholders so pytest always uses valid secrets.
 os.environ["JWT_SECRET"] = "test-jwt-secret-32-characters-min"
 os.environ["HMAC_SECRET"] = "test-hmac-secret-32-characters-min"
@@ -73,9 +70,7 @@ def engine() -> Engine:
     except Exception as exc:
         pytest.skip(f"PostgreSQL not available: {exc}")
     alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
-    alembic_cfg.set_main_option(
-        "script_location", os.path.join(os.path.dirname(__file__), "..", "migrations")
-    )
+    alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "..", "migrations"))
     command.upgrade(alembic_cfg, "head")
     return eng
 

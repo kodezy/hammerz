@@ -28,17 +28,13 @@ def _register(client, email: str | None = None, password: str = "password1", **e
 def test_register_creates_bidder_wallet_zero(client, db_session):
     suffix = uuid.uuid4().hex[:8]
     reg_email = f"A+{suffix}@B.COM"
-    r = client.post(
-        "/api/v1/auth/register",
-        json={"email": reg_email, "password": "password1"},
-    )
+    r = client.post("/api/v1/auth/register", json={"email": reg_email, "password": "password1"})
     assert r.status_code == 201
     assert r.json()["email"] == reg_email.strip().lower()
     assert r.json()["role"] == "BIDDER"
 
     token = client.post(
-        "/api/v1/auth/login",
-        json={"email": reg_email.strip().lower(), "password": "password1"},
+        "/api/v1/auth/login", json={"email": reg_email.strip().lower(), "password": "password1"}
     ).json()["token"]
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
@@ -91,10 +87,7 @@ def test_concurrent_register_same_email_one_conflict(tmp_path):
         os.environ["AUDIT_DIR"] = audit_dir
         get_settings.cache_clear()
         with TestClient(create_app()) as c:
-            return c.post(
-                "/api/v1/auth/register",
-                json={"email": email, "password": "password1"},
-            ).status_code
+            return c.post("/api/v1/auth/register", json={"email": email, "password": "password1"}).status_code
 
     statuses: list[int] = []
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -110,18 +103,14 @@ def test_concurrent_register_same_email_one_conflict(tmp_path):
 def test_register_ignores_role_and_balance(client):
     email = _unique_email("role")
     r = client.post(
-        "/api/v1/auth/register",
-        json={"email": email, "password": "password1", "role": "SELLER", "balance": 999},
+        "/api/v1/auth/register", json={"email": email, "password": "password1", "role": "SELLER", "balance": 999}
     )
     assert r.status_code == 201
     assert r.json()["role"] == "BIDDER"
 
 
 def test_register_short_password_422(live_client):
-    r = live_client.post(
-        "/api/v1/auth/register",
-        json={"email": _unique_email("short"), "password": "short"},
-    )
+    r = live_client.post("/api/v1/auth/register", json={"email": _unique_email("short"), "password": "short"})
     assert r.status_code == 422
     assert r.json()["code"] == ErrorCode.VALIDATION_ERROR
 
@@ -134,9 +123,7 @@ def test_login_and_me(client):
     assert bad.status_code == 401
     assert bad.json()["code"] == ErrorCode.INVALID_CREDENTIALS
 
-    token = client.post(
-        "/api/v1/auth/login", json={"email": email, "password": "password1"}
-    ).json()["token"]
+    token = client.post("/api/v1/auth/login", json={"email": email, "password": "password1"}).json()["token"]
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
     assert me.json()["email"] == email
@@ -150,9 +137,7 @@ def test_me_rejects_jwt_alg_none(client):
     user_id = reg.json()["id"]
     now = datetime.now(UTC)
     token = jwt.encode(
-        {"sub": user_id, "role": "BIDDER", "iat": now, "exp": now + timedelta(minutes=30)},
-        "",
-        algorithm="none",
+        {"sub": user_id, "role": "BIDDER", "iat": now, "exp": now + timedelta(minutes=30)}, "", algorithm="none"
     )
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 401
@@ -166,12 +151,7 @@ def test_me_uses_db_role_not_jwt_claim(client):
     user_id = reg.json()["id"]
     now = datetime.now(UTC)
     forged = jwt.encode(
-        {
-            "sub": user_id,
-            "role": "SELLER",
-            "iat": now,
-            "exp": now + timedelta(minutes=30),
-        },
+        {"sub": user_id, "role": "SELLER", "iat": now, "exp": now + timedelta(minutes=30)},
         get_settings().jwt_secret,
         algorithm="HS256",
     )

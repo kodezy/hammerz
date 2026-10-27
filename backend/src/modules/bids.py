@@ -17,14 +17,7 @@ from src.modules import audit as audit_module
 from src.modules.alias import display_alias
 from src.modules.journal import Journal
 
-Position = Literal[
-    "NOT_PARTICIPATING",
-    "LEADING",
-    "OUTBID",
-    "WON",
-    "LOST",
-    "CANCELLED",
-]
+Position = Literal["NOT_PARTICIPATING", "LEADING", "OUTBID", "WON", "LOST", "CANCELLED"]
 
 
 @dataclass
@@ -60,25 +53,18 @@ def _auction_live(auction: Auction, now: datetime) -> None:
 
 
 def _next_bid_sequence(session: Session, auction_id: uuid.UUID) -> int:
-    current = session.scalar(
-        select(func.coalesce(func.max(Bid.sequence), 0)).where(Bid.auction_id == auction_id)
-    )
+    current = session.scalar(select(func.coalesce(func.max(Bid.sequence), 0)).where(Bid.auction_id == auction_id))
     return int(current) + 1
 
 
 def _next_event_sequence(session: Session, auction_id: uuid.UUID) -> int:
-    current = session.scalar(
-        select(func.coalesce(func.max(Event.sequence), 0)).where(Event.auction_id == auction_id)
-    )
+    current = session.scalar(select(func.coalesce(func.max(Event.sequence), 0)).where(Event.auction_id == auction_id))
     return int(current) + 1
 
 
 def _prev_event_hash(session: Session, auction_id: uuid.UUID) -> str:
     row = session.scalar(
-        select(Event.event_hash)
-        .where(Event.auction_id == auction_id)
-        .order_by(Event.sequence.desc())
-        .limit(1)
+        select(Event.event_hash).where(Event.auction_id == auction_id).order_by(Event.sequence.desc()).limit(1)
     )
     return row if row else audit_module.genesis_event_hash()
 
@@ -87,12 +73,7 @@ def _iso(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
 
 
-def _bid_response(
-    session: Session,
-    auction: Auction,
-    bid: Bid,
-    bidder: User,
-) -> dict[str, Any]:
+def _bid_response(session: Session, auction: Auction, bid: Bid, bidder: User) -> dict[str, Any]:
     alias = display_alias(auction.id, bidder.id, bidder.role)
     return {
         "accepted_at": _iso(bid.accepted_at),
@@ -108,18 +89,9 @@ def _bid_response(
 
 
 def _idempotency_early(
-    session: Session,
-    journal: Journal,
-    bidder_id: uuid.UUID,
-    idempotency_key: uuid.UUID,
-    fingerprint: str,
+    session: Session, journal: Journal, bidder_id: uuid.UUID, idempotency_key: uuid.UUID, fingerprint: str
 ) -> dict[str, Any] | None:
-    existing = session.scalar(
-        select(Key).where(
-            Key.actor_id == bidder_id,
-            Key.idempotency_key == idempotency_key,
-        )
-    )
+    existing = session.scalar(select(Key).where(Key.actor_id == bidder_id, Key.idempotency_key == idempotency_key))
     if existing is None:
         return None
     if existing.fingerprint != fingerprint:
@@ -193,12 +165,7 @@ async def place_bid(
     bid_id = uuid.uuid4()
 
     async with journal._async_lock:
-        existing = session.scalar(
-            select(Key).where(
-                Key.actor_id == bidder_id,
-                Key.idempotency_key == idempotency_key,
-            )
-        )
+        existing = session.scalar(select(Key).where(Key.actor_id == bidder_id, Key.idempotency_key == idempotency_key))
         if existing:
             if existing.fingerprint != fingerprint:
                 raise AppError(409, ErrorCode.IDEMPOTENCY_KEY_REUSED, "Idempotency key reused")
@@ -222,9 +189,7 @@ async def place_bid(
 
         try:
             session.execute(text("SET LOCAL lock_timeout = '5s'"))
-            auction = session.scalar(
-                select(Auction).where(Auction.id == auction_id).with_for_update()
-            )
+            auction = session.scalar(select(Auction).where(Auction.id == auction_id).with_for_update())
             if auction is None:
                 raise AppError(404, ErrorCode.NOT_FOUND, "Auction not found")
             if auction.seller_id == bidder_id:
@@ -251,9 +216,7 @@ async def place_bid(
 
             wallets: dict[uuid.UUID, Wallet] = {}
             for uid in wallet_ids:
-                wallet = session.scalar(
-                    select(Wallet).where(Wallet.user_id == uid).with_for_update()
-                )
+                wallet = session.scalar(select(Wallet).where(Wallet.user_id == uid).with_for_update())
                 if wallet is None:
                     raise AppError(404, ErrorCode.NOT_FOUND, "Wallet not found")
                 wallets[uid] = wallet
@@ -270,11 +233,7 @@ async def place_bid(
 
             await asyncio.to_thread(
                 journal.append_prepare,
-                {
-                    "operation_id": str(operation_id),
-                    "fingerprint": fingerprint,
-                    "event": {"type": "BID_ACCEPTED"},
-                },
+                {"operation_id": str(operation_id), "fingerprint": fingerprint, "event": {"type": "BID_ACCEPTED"}},
             )
 
             reserve_deltas: list[dict[str, Any]] = []
@@ -394,9 +353,7 @@ async def place_bid(
             except IntegrityError as exc:
                 session.rollback()
                 await asyncio.to_thread(journal.append_abort, operation_id)
-                raise AppError(
-                    409, ErrorCode.IDEMPOTENCY_KEY_REUSED, "Idempotency key reused"
-                ) from exc
+                raise AppError(409, ErrorCode.IDEMPOTENCY_KEY_REUSED, "Idempotency key reused") from exc
             await asyncio.to_thread(journal.append_commit, operation_id)
             session.refresh(auction)
             session.refresh(bid)
@@ -430,8 +387,6 @@ def list_bids(
     after_sequence: int | None,
     limit: int,
 ) -> dict[str, Any]:
-    from src.modules import audit as audit_module
-
     auction = session.get(Auction, auction_id)
     if auction is None:
         raise AppError(404, ErrorCode.NOT_FOUND, "Auction not found")
@@ -471,10 +426,7 @@ def participant_position(session: Session, user_id: uuid.UUID, auction_id: uuid.
     if auction is None:
         raise AppError(404, ErrorCode.NOT_FOUND, "Auction not found")
     participated = session.scalar(
-        select(func.count()).select_from(Bid).where(
-            Bid.auction_id == auction_id,
-            Bid.bidder_id == user_id,
-        )
+        select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id, Bid.bidder_id == user_id)
     )
     if not participated:
         position: Position = "NOT_PARTICIPATING"
@@ -492,8 +444,4 @@ def participant_position(session: Session, user_id: uuid.UUID, auction_id: uuid.
     reserved_cents = None
     if position == "LEADING" and auction.current_bid_cents is not None:
         reserved_cents = auction.current_bid_cents
-    return {
-        "auction_id": str(auction_id),
-        "position": position,
-        "reserved_cents": reserved_cents,
-    }
+    return {"auction_id": str(auction_id), "position": position, "reserved_cents": reserved_cents}

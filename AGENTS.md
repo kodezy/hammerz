@@ -32,7 +32,7 @@ export HMAC_SECRET=test-secret-32-chars-minimum!!
 export ALIAS_SECRET=test-secret-32-chars-minimum!!
 ```
 
-Fast validation: `cd backend && uv run ruff check .`
+Fast validation: `cd backend && uv run ruff format . && uv run ruff check .`
 
 Full backend tests: `cd backend && uv run pytest -q`
 
@@ -56,7 +56,7 @@ Do not seed on API startup. Seed is `docker compose exec backend seed-demo` only
 - Catalog HTTP happens before the short create transaction. Met is the catalog source; snapshot fields stay in `catalog_items`.
 - Sellers are provisioned by seed (`auth.provision`), not public register.
 
-Enforced by CI: `ruff check` and `pytest` (backend); `npm run build` (tsc + Vite). Frontend `oxlint` is local-only.
+Enforced by CI: `ruff format --check`, `ruff check`, and `pytest` (backend); `npm run build` (tsc + Vite). Frontend `oxlint` is local-only.
 
 ## Context routing
 

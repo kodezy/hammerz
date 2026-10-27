@@ -17,10 +17,7 @@ def _money(cents: int) -> dict:
 def wallet_view(session: Session, wallet: Wallet) -> dict:
     commitments: list[dict] = []
     rows = session.scalars(
-        select(Auction).where(
-            Auction.current_leader_id == wallet.user_id,
-            Auction.status == "OPEN",
-        )
+        select(Auction).where(Auction.current_leader_id == wallet.user_id, Auction.status == "OPEN")
     ).all()
     for auction in rows:
         item = session.get(Item, auction.item_id)
@@ -51,11 +48,7 @@ def get_wallet_for_user(session: Session, user_id: uuid.UUID) -> dict:
 
 
 def deposit(
-    session: Session,
-    user_id: uuid.UUID,
-    amount_cents: int,
-    idempotency_key: uuid.UUID,
-    fingerprint: str,
+    session: Session, user_id: uuid.UUID, amount_cents: int, idempotency_key: uuid.UUID, fingerprint: str
 ) -> dict:
     settings = get_settings()
     if not limiter.allow(f"deposit:{user_id}", 10):
@@ -65,12 +58,7 @@ def deposit(
     if amount_cents > settings.max_deposit_cents:
         raise AppError(422, ErrorCode.WALLET_LIMIT, "Deposit exceeds single deposit limit")
 
-    existing = session.scalar(
-        select(Key).where(
-            Key.actor_id == user_id,
-            Key.idempotency_key == idempotency_key,
-        )
-    )
+    existing = session.scalar(select(Key).where(Key.actor_id == user_id, Key.idempotency_key == idempotency_key))
     if existing:
         if existing.fingerprint != fingerprint:
             raise AppError(409, ErrorCode.IDEMPOTENCY_KEY_REUSED, "Idempotency key reused")
@@ -80,9 +68,7 @@ def deposit(
 
     operation_id = uuid.uuid4()
     session.execute(text("SET LOCAL lock_timeout = '5s'"))
-    wallet = session.scalar(
-        select(Wallet).where(Wallet.user_id == user_id).with_for_update()
-    )
+    wallet = session.scalar(select(Wallet).where(Wallet.user_id == user_id).with_for_update())
     if wallet is None:
         raise AppError(404, ErrorCode.NOT_FOUND, "Wallet not found")
     new_total = wallet.total_cents + amount_cents

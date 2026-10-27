@@ -19,26 +19,19 @@ def _db_now(session: Session) -> datetime:
 
 
 def _next_event_sequence(session: Session, auction_id: uuid.UUID) -> int:
-    current = session.scalar(
-        select(func.coalesce(func.max(Event.sequence), 0)).where(Event.auction_id == auction_id)
-    )
+    current = session.scalar(select(func.coalesce(func.max(Event.sequence), 0)).where(Event.auction_id == auction_id))
     return int(current) + 1
 
 
 def _prev_event_hash(session: Session, auction_id: uuid.UUID) -> str:
     row = session.scalar(
-        select(Event.event_hash)
-        .where(Event.auction_id == auction_id)
-        .order_by(Event.sequence.desc())
-        .limit(1)
+        select(Event.event_hash).where(Event.auction_id == auction_id).order_by(Event.sequence.desc()).limit(1)
     )
     return row if row else audit_module.genesis_event_hash()
 
 
 def _validate_reason(session: Session, auction_id: uuid.UUID, reason: str | None) -> str | None:
-    has_bids = session.scalar(
-        select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id)
-    )
+    has_bids = session.scalar(select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id))
     if not has_bids:
         if reason is None or not reason.strip():
             return None
@@ -50,17 +43,9 @@ def _validate_reason(session: Session, auction_id: uuid.UUID, reason: str | None
 
 
 def _idempotency_check(
-    session: Session,
-    seller_id: uuid.UUID,
-    idempotency_key: uuid.UUID,
-    fingerprint: str,
+    session: Session, seller_id: uuid.UUID, idempotency_key: uuid.UUID, fingerprint: str
 ) -> dict[str, Any] | None:
-    existing = session.scalar(
-        select(Key).where(
-            Key.actor_id == seller_id,
-            Key.idempotency_key == idempotency_key,
-        )
-    )
+    existing = session.scalar(select(Key).where(Key.actor_id == seller_id, Key.idempotency_key == idempotency_key))
     if existing is None:
         return None
     if existing.fingerprint != fingerprint:
@@ -92,28 +77,17 @@ async def cancel_auction(
     operation_id = uuid.uuid4()
 
     async with journal._async_lock:
-        existing = session.scalar(
-            select(Key).where(
-                Key.actor_id == seller_id,
-                Key.idempotency_key == idempotency_key,
-            )
-        )
+        existing = session.scalar(select(Key).where(Key.actor_id == seller_id, Key.idempotency_key == idempotency_key))
         if existing and existing.response_json:
             return session.get(Auction, auction_id)
 
         await asyncio.to_thread(
             journal.append_prepare,
-            {
-                "operation_id": str(operation_id),
-                "fingerprint": fingerprint,
-                "event": {"type": "AUCTION_CANCELLED"},
-            },
+            {"operation_id": str(operation_id), "fingerprint": fingerprint, "event": {"type": "AUCTION_CANCELLED"}},
         )
         try:
             session.execute(text("SET LOCAL lock_timeout = '5s'"))
-            auction = session.scalar(
-                select(Auction).where(Auction.id == auction_id).with_for_update()
-            )
+            auction = session.scalar(select(Auction).where(Auction.id == auction_id).with_for_update())
             if auction is None:
                 raise AppError(404, ErrorCode.NOT_FOUND, "Auction not found")
             if auction.seller_id != seller_id:
@@ -146,9 +120,7 @@ async def cancel_auction(
             if leader_id is not None:
                 wallet_ids.append(leader_id)
             for uid in sorted(wallet_ids):
-                wallet = session.scalar(
-                    select(Wallet).where(Wallet.user_id == uid).with_for_update()
-                )
+                wallet = session.scalar(select(Wallet).where(Wallet.user_id == uid).with_for_update())
                 if wallet is None:
                     continue
                 if uid == leader_id and auction.current_bid_cents:
@@ -166,9 +138,7 @@ async def cancel_auction(
                     )
                     user = session.get(User, uid)
                     release = {
-                        "alias": display_alias(
-                            auction_id, uid, user.role if user else "BIDDER"
-                        ),
+                        "alias": display_alias(auction_id, uid, user.role if user else "BIDDER"),
                         "amount_cents": amount,
                     }
 
@@ -191,10 +161,7 @@ async def cancel_auction(
             from datetime import UTC
 
             occurred_at = datetime.now(UTC)
-            extra: dict[str, Any] = {
-                "last_bid_id": str(last_bid.id) if last_bid else None,
-                "reason": stored_reason,
-            }
+            extra: dict[str, Any] = {"last_bid_id": str(last_bid.id) if last_bid else None, "reason": stored_reason}
             if release:
                 extra["release"] = release
             payload = audit_module.build_event_payload(

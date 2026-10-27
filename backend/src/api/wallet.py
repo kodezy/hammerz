@@ -17,10 +17,7 @@ class DepositBody(BaseModel):
 
 
 @router.get("")
-def get_wallet(
-    user: User = Depends(require_bidder),
-    session: Session = Depends(get_db),
-) -> dict:
+def get_wallet(user: User = Depends(require_bidder), session: Session = Depends(get_db)) -> dict:
     return wallet_module.get_wallet_for_user(session, user.id)
 
 
@@ -32,15 +29,5 @@ def create_deposit(
     user: User = Depends(require_bidder),
     session: Session = Depends(get_db),
 ) -> dict:
-    fingerprint = request_fingerprint(
-        request.method,
-        request.url.path,
-        {"amount_cents": body.amount_cents},
-    )
-    return wallet_module.deposit(
-        session,
-        user.id,
-        int(body.amount_cents),
-        idempotency_key,
-        fingerprint,
-    )
+    fingerprint = request_fingerprint(request.method, request.url.path, {"amount_cents": body.amount_cents})
+    return wallet_module.deposit(session, user.id, int(body.amount_cents), idempotency_key, fingerprint)

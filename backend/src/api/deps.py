@@ -13,17 +13,8 @@ from src.modules.auth import current_user
 bearer = HTTPBearer(auto_error=False)
 
 
-def get_request_id(request: Request) -> str:
-    return getattr(request.state, "request_id", "")
-
-
-def db_session(session: Session = Depends(get_db)) -> Session:
-    return session
-
-
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-    session: Session = Depends(get_db),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)], session: Session = Depends(get_db)
 ) -> User:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise AppError(401, ErrorCode.UNAUTHORIZED, "Authentication required")
@@ -31,8 +22,7 @@ async def get_current_user(
 
 
 async def get_optional_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-    session: Session = Depends(get_db),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)], session: Session = Depends(get_db)
 ) -> User | None:
     if credentials is None or credentials.scheme.lower() != "bearer":
         return None
@@ -63,9 +53,7 @@ def client_ip(request: Request) -> str:
     return "unknown"
 
 
-def parse_idempotency_key(
-    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
-) -> uuid.UUID:
+def parse_idempotency_key(idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None) -> uuid.UUID:
     if not idempotency_key:
         raise AppError(422, ErrorCode.IDEMPOTENCY_KEY_REQUIRED, "Idempotency-Key header required")
     try:

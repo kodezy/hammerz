@@ -29,9 +29,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     wallet: Mapped["Wallet"] = relationship(back_populates="user", uselist=False)
 
@@ -77,9 +75,7 @@ class Item(Base):
     attribution: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
 
-    __table_args__ = (
-        UniqueConstraint("provider", "external_id", name="catalog_items_provider_external"),
-    )
+    __table_args__ = (UniqueConstraint("provider", "external_id", name="catalog_items_provider_external"),)
 
 
 class Auction(Base):
@@ -191,9 +187,7 @@ class Ledger(Base):
     )
     total_delta_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
     committed_delta_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("operation_id", "wallet_id", "type", name="ledger_op_wallet_type"),
@@ -221,9 +215,7 @@ class Key(Base):
     status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     response_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
-    __table_args__ = (
-        UniqueConstraint("actor_id", "idempotency_key", name="idempotency_actor_key"),
-    )
+    __table_args__ = (UniqueConstraint("actor_id", "idempotency_key", name="idempotency_actor_key"),)
 
 
 class Deal(Base):
@@ -254,7 +246,5 @@ class Slip(Base):
         UUID(as_uuid=True), ForeignKey("settlements.id", ondelete="RESTRICT"), unique=True, nullable=False
     )
     snapshot_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     close_event_hash: Mapped[str] = mapped_column(String(128), nullable=False)

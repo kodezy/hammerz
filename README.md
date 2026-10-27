@@ -52,6 +52,7 @@ export DATABASE_URL=postgresql+psycopg://hammerz:hammerz@127.0.0.1:5432/hammerz
 export JWT_SECRET=test-secret-32-chars-minimum!!
 export HMAC_SECRET=test-secret-32-chars-minimum!!
 export ALIAS_SECRET=test-secret-32-chars-minimum!!
+uv run ruff format .
 uv run ruff check .
 uv run pytest -q
 ```

@@ -34,22 +34,12 @@ async def verify_password(plain: str, hashed: str) -> bool:
 
 def issue_token(user_id: uuid.UUID, role: str) -> str:
     now = datetime.now(UTC)
-    payload = {
-        "sub": str(user_id),
-        "role": role,
-        "iat": now,
-        "exp": now + JWT_TTL,
-    }
+    payload = {"sub": str(user_id), "role": role, "iat": now, "exp": now + JWT_TTL}
     return jwt.encode(payload, get_settings().jwt_secret, algorithm=JWT_ALG)
 
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(
-            token,
-            get_settings().jwt_secret,
-            algorithms=[JWT_ALG],
-            options={"require": ["exp", "sub"]},
-        )
+        return jwt.decode(token, get_settings().jwt_secret, algorithms=[JWT_ALG], options={"require": ["exp", "sub"]})
     except jwt.InvalidTokenError as exc:
         raise ValueError("invalid token") from exc

@@ -59,27 +59,10 @@ class Journal:
             self.blocked = True
 
     def _write_manifest_genesis(self) -> None:
-        genesis_line = {
-            "deployment_id": self.deployment_id,
-            "schema_version": JOURNAL_SCHEMA,
-            "type": "MANIFEST",
-        }
-        mac = journal_mac(
-            self.secret,
-            self.deployment_id,
-            self.key_id,
-            GENESIS_PREV,
-            genesis_line,
-        )
-        manifest = {
-            **genesis_line,
-            "secret_key_id": self.key_id,
-            "genesis_hmac": mac,
-        }
-        self.manifest_path.write_text(
-            json.dumps(manifest, separators=(",", ":")),
-            encoding="utf-8",
-        )
+        genesis_line = {"deployment_id": self.deployment_id, "schema_version": JOURNAL_SCHEMA, "type": "MANIFEST"}
+        mac = journal_mac(self.secret, self.deployment_id, self.key_id, GENESIS_PREV, genesis_line)
+        manifest = {**genesis_line, "secret_key_id": self.key_id, "genesis_hmac": mac}
+        self.manifest_path.write_text(json.dumps(manifest, separators=(",", ":")), encoding="utf-8")
 
     def _verify_chain(self) -> None:
         prev = GENESIS_PREV
@@ -97,13 +80,7 @@ class Journal:
                 continue
             line = json.loads(raw_line)
             body = {k: v for k, v in line.items() if k != "hmac"}
-            expected = journal_mac(
-                self.secret,
-                self.deployment_id,
-                self.key_id,
-                prev,
-                body,
-            )
+            expected = journal_mac(self.secret, self.deployment_id, self.key_id, prev, body)
             if not hmac_compare(expected, line.get("hmac", "")):
                 raise ValueError("hmac mismatch")
             seq = int(line["seq"])
@@ -145,11 +122,7 @@ class Journal:
                     break
                 except BlockingIOError:
                     if time.monotonic() >= deadline:
-                        raise AppError(
-                            503,
-                            ErrorCode.AUDIT_UNAVAILABLE,
-                            "Audit journal lock timeout",
-                        )
+                        raise AppError(503, ErrorCode.AUDIT_UNAVAILABLE, "Audit journal lock timeout")
                     time.sleep(0.05)
             yield
         finally:
@@ -188,13 +161,7 @@ class Journal:
                 line["event"] = record["event"]
             if "fingerprint" in record:
                 line["fingerprint"] = record["fingerprint"]
-            mac = journal_mac(
-                self.secret,
-                self.deployment_id,
-                self.key_id,
-                self._last_hmac,
-                line,
-            )
+            mac = journal_mac(self.secret, self.deployment_id, self.key_id, self._last_hmac, line)
             line["hmac"] = mac
             self._append_line(line)
             self._seq += 1
@@ -216,13 +183,7 @@ class Journal:
                 "seq": self._seq + 1,
                 "type": "COMMIT",
             }
-            mac = journal_mac(
-                self.secret,
-                self.deployment_id,
-                self.key_id,
-                self._last_hmac,
-                line,
-            )
+            mac = journal_mac(self.secret, self.deployment_id, self.key_id, self._last_hmac, line)
             line["hmac"] = mac
             self._append_line(line)
             self._seq += 1
@@ -244,13 +205,7 @@ class Journal:
                 "seq": self._seq + 1,
                 "type": "ABORT",
             }
-            mac = journal_mac(
-                self.secret,
-                self.deployment_id,
-                self.key_id,
-                self._last_hmac,
-                line,
-            )
+            mac = journal_mac(self.secret, self.deployment_id, self.key_id, self._last_hmac, line)
             line["hmac"] = mac
             self._append_line(line)
             self._seq += 1

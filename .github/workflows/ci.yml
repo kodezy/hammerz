@@ -37,6 +37,7 @@ jobs:
         working-directory: backend
         run: |
           uv sync --extra dev
+          uv run ruff format --check .
           uv run ruff check .
           uv run pytest -q
 

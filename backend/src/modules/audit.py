@@ -9,7 +9,6 @@ from src.core.canon import dumps as canon_dumps
 from src.core.canon import event_mac, secret_key_id
 from src.core.config import get_settings
 from src.db.tables import Event
-from src.modules.alias import display_alias
 
 
 def build_event_payload(
@@ -51,13 +50,7 @@ def build_event_payload(
 def sign_event(payload: dict[str, Any], prev_hash: str) -> str:
     settings = get_settings()
     key_id = secret_key_id(settings.hmac_secret.encode())
-    return event_mac(
-        settings.hmac_secret.encode(),
-        settings.deployment_id,
-        key_id,
-        prev_hash,
-        payload,
-    )
+    return event_mac(settings.hmac_secret.encode(), settings.deployment_id, key_id, prev_hash, payload)
 
 
 def json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -94,10 +87,6 @@ def genesis_event_hash() -> str:
     return "0" * 64
 
 
-def actor_alias_for(session: Session, auction_id: uuid.UUID, user_id: uuid.UUID, role: str) -> str:
-    return display_alias(auction_id, user_id, role)
-
-
 def _public_payload(payload: dict[str, Any]) -> dict[str, Any]:
     out = dict(payload)
     out.pop("actor_id", None)
@@ -123,9 +112,7 @@ def verify_auction(session: Session, journal, auction_id: uuid.UUID) -> dict[str
         }
 
     auction = session.get(Auction, auction_id)
-    events = session.scalars(
-        select(Event).where(Event.auction_id == auction_id).order_by(Event.sequence.asc())
-    ).all()
+    events = session.scalars(select(Event).where(Event.auction_id == auction_id).order_by(Event.sequence.asc())).all()
 
     if auction is None and not events:
         raise AppError(404, ErrorCode.NOT_FOUND, "Auction not found")
@@ -169,12 +156,7 @@ def verify_auction(session: Session, journal, auction_id: uuid.UUID) -> dict[str
 
 
 def list_audit_events(
-    session: Session,
-    auction_id: uuid.UUID,
-    *,
-    before_sequence: int | None,
-    after_sequence: int | None,
-    limit: int,
+    session: Session, auction_id: uuid.UUID, *, before_sequence: int | None, after_sequence: int | None, limit: int
 ) -> dict[str, Any]:
     from sqlalchemy import select
 
@@ -189,12 +171,7 @@ def list_audit_events(
         stmt = stmt.order_by(Event.sequence.desc())
     rows = session.scalars(stmt.limit(limit)).all()
     items = [
-        {
-            "event_hash": ev.event_hash,
-            "payload": _public_payload(ev.payload),
-            "sequence": ev.sequence,
-            "type": ev.type,
-        }
+        {"event_hash": ev.event_hash, "payload": _public_payload(ev.payload), "sequence": ev.sequence, "type": ev.type}
         for ev in rows
     ]
     return {"items": items, "limit": limit}

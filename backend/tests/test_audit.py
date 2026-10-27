@@ -1,20 +1,12 @@
-
 import httpx
 
 from tests.conftest import auth_headers
 
 
 def _mock_met(respx_mock):
-    respx_mock.get(
-        "https://collectionapi.metmuseum.org/public/collection/v1/objects/436535"
-    ).mock(
+    respx_mock.get("https://collectionapi.metmuseum.org/public/collection/v1/objects/436535").mock(
         return_value=httpx.Response(
-            200,
-            json={
-                "objectID": 436535,
-                "title": "Audit Lot",
-                "primaryImage": "https://example.com/img.jpg",
-            },
+            200, json={"objectID": 436535, "title": "Audit Lot", "primaryImage": "https://example.com/img.jpg"}
         )
     )
 

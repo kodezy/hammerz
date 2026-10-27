@@ -39,18 +39,12 @@ def _money(cents: int | None) -> dict[str, Any] | None:
 
 
 def auction_snapshot(
-    session: Session,
-    auction: Auction,
-    item: Item,
-    seller: User,
-    now: datetime | None = None,
+    session: Session, auction: Auction, item: Item, seller: User, now: datetime | None = None
 ) -> dict[str, Any]:
     if now is None:
         now = _db_now(session)
     display_status = derive_display_status(auction, now)
-    bid_count = session.scalar(
-        select(func.count()).select_from(Bid).where(Bid.auction_id == auction.id)
-    ) or 0
+    bid_count = session.scalar(select(func.count()).select_from(Bid).where(Bid.auction_id == auction.id)) or 0
     leader_alias = None
     if auction.current_leader_id is not None:
         leader = session.get(User, auction.current_leader_id)
@@ -126,10 +120,7 @@ async def create_auction(
     auction_id = uuid.uuid4()
 
     item = session.scalar(
-        select(Item).where(
-            Item.provider == catalog["provider"],
-            Item.external_id == catalog["external_id"],
-        )
+        select(Item).where(Item.provider == catalog["provider"], Item.external_id == catalog["external_id"])
     )
     new_item = item is None
     if item is None:
@@ -153,10 +144,7 @@ async def create_auction(
 
     alias = display_alias(auction_id, seller_id, seller.role)
     occurred_at = datetime.now(UTC)
-    rules = {
-        "minimum_increment_cents": minimum_increment_cents,
-        "opening_bid_cents": opening_bid_cents,
-    }
+    rules = {"minimum_increment_cents": minimum_increment_cents, "opening_bid_cents": opening_bid_cents}
     item_snapshot = {
         "artist": item.artist,
         "external_id": item.external_id,
@@ -185,10 +173,7 @@ async def create_auction(
     async with journal._async_lock:
         await asyncio.to_thread(
             journal.append_prepare,
-            {
-                "operation_id": str(operation_id),
-                "event": {"payload": payload, "type": "AUCTION_CREATED"},
-            },
+            {"operation_id": str(operation_id), "event": {"payload": payload, "type": "AUCTION_CREATED"}},
         )
         try:
             session.execute(text("SET LOCAL lock_timeout = '5s'"))
@@ -228,12 +213,7 @@ async def create_auction(
             raise
 
 
-def list_auctions(
-    session: Session,
-    status_filter: DisplayFilter | None,
-    offset: int,
-    limit: int,
-) -> dict[str, Any]:
+def list_auctions(session: Session, status_filter: DisplayFilter | None, offset: int, limit: int) -> dict[str, Any]:
     now = _db_now(session)
     stmt = select(Auction).where(Auction.status != "CANCELLED")
 

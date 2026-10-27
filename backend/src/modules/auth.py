@@ -11,21 +11,13 @@ from src.db.tables import User, Wallet
 
 def _validate_password(password: str) -> None:
     if len(password) < 8 or len(password) > 128:
-        raise AppError(
-            422,
-            ErrorCode.VALIDATION_ERROR,
-            "Password must be 8–128 characters",
-        )
+        raise AppError(422, ErrorCode.VALIDATION_ERROR, "Password must be 8–128 characters")
 
 
 async def register(session: Session, email: str, password: str) -> User:
     _validate_password(password)
     normalized = normalize_email(email)
-    user = User(
-        email=normalized,
-        password_hash=await hash_password(password),
-        role="BIDDER",
-    )
+    user = User(email=normalized, password_hash=await hash_password(password), role="BIDDER")
     session.add(user)
     try:
         session.flush()
@@ -69,11 +61,7 @@ async def provision(session: Session, email: str, password: str, role: str) -> U
         raise ValueError("invalid role")
     _validate_password(password)
     normalized = normalize_email(email)
-    user = User(
-        email=normalized,
-        password_hash=await hash_password(password),
-        role=role,
-    )
+    user = User(email=normalized, password_hash=await hash_password(password), role=role)
     session.add(user)
     try:
         session.flush()

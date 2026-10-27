@@ -55,7 +55,7 @@ Audited mutations lock journal first, then auction `FOR UPDATE`, then wallets by
 
 Architecture checks: none.
 
-Fast check: `cd backend && uv run ruff check .`
+Fast check: `cd backend && uv run ruff format . && uv run ruff check .`
 
 Tests: `cd backend && uv run pytest -q` (real PostgreSQL 16; `DATABASE_URL` as in CI).
 

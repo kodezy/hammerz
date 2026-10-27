@@ -70,9 +70,7 @@ def list_auctions_route(
 
 @router.get("/{auction_id}")
 def get_auction_route(
-    auction_id: uuid.UUID,
-    session: Session = Depends(get_db),
-    viewer: User | None = Depends(get_optional_user),
+    auction_id: uuid.UUID, session: Session = Depends(get_db), viewer: User | None = Depends(get_optional_user)
 ) -> dict:
     from src.db.tables import Auction
 
@@ -103,19 +101,9 @@ async def place_bid_route(
     journal: Journal = Depends(get_journal),
 ) -> dict:
     path = f"/api/v1/auctions/{auction_id}/bids"
-    fingerprint = request_fingerprint(
-        request.method,
-        path,
-        {"amount_cents": body.amount_cents},
-    )
+    fingerprint = request_fingerprint(request.method, path, {"amount_cents": body.amount_cents})
     result = await bids_module.place_bid(
-        session,
-        journal,
-        bidder.id,
-        auction_id,
-        int(body.amount_cents),
-        idempotency_key,
-        fingerprint,
+        session, journal, bidder.id, auction_id, int(body.amount_cents), idempotency_key, fingerprint
     )
     hub = request.app.state.hub
     snap = auctions_module.get_auction(session, auction_id)
@@ -146,13 +134,7 @@ async def cancel_auction_route(
     path = f"/api/v1/auctions/{auction_id}/cancel"
     fingerprint = request_fingerprint(request.method, path, body.model_dump())
     auction = await cancel_module.cancel_auction(
-        session,
-        journal,
-        seller.id,
-        auction_id,
-        body.reason,
-        idempotency_key,
-        fingerprint,
+        session, journal, seller.id, auction_id, body.reason, idempotency_key, fingerprint
     )
     hub = request.app.state.hub
     snap = auctions_module.get_auction(session, auction_id)
@@ -179,12 +161,7 @@ def list_bids_route(
     journal: Journal = Depends(get_journal),
 ) -> dict:
     return bids_module.list_bids(
-        session,
-        journal,
-        auction_id,
-        before_sequence=before_sequence,
-        after_sequence=after_sequence,
-        limit=limit,
+        session, journal, auction_id, before_sequence=before_sequence, after_sequence=after_sequence, limit=limit
     )
 
 
@@ -199,17 +176,11 @@ def audit_route(
 ) -> dict:
     summary = audit_module.verify_auction(session, journal, auction_id)
     events = audit_module.list_audit_events(
-        session,
-        auction_id,
-        before_sequence=before_sequence,
-        after_sequence=after_sequence,
-        limit=limit,
+        session, auction_id, before_sequence=before_sequence, after_sequence=after_sequence, limit=limit
     )
     from sqlalchemy import func, select
 
     from src.db.tables import Bid
 
-    bid_count = session.scalar(
-        select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id)
-    ) or 0
+    bid_count = session.scalar(select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id)) or 0
     return {**events, "bid_count": int(bid_count), "verification": summary}

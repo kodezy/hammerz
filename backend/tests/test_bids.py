@@ -9,9 +9,7 @@ from tests.conftest import auth_headers
 
 
 def _mock_met(respx_mock, object_id: int = 436535):
-    respx_mock.get(
-        f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{object_id}"
-    ).mock(
+    respx_mock.get(f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{object_id}").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -70,11 +68,7 @@ def _make_live_auction(
 
 def _bid(client, token: str, auction_id: str, amount: int, key: str | None = None):
     headers = {**auth_headers(token), "Idempotency-Key": key or str(uuid.uuid4())}
-    return client.post(
-        f"/api/v1/auctions/{auction_id}/bids",
-        headers=headers,
-        json={"amount_cents": amount},
-    )
+    return client.post(f"/api/v1/auctions/{auction_id}/bids", headers=headers, json={"amount_cents": amount})
 
 
 def test_first_bid_at_opening(client, db_session, seller_token, bidder_token, respx_mock):
@@ -97,9 +91,7 @@ def test_bid_below_opening_rejected(client, db_session, seller_token, bidder_tok
     assert db_session.scalar(select(func.count()).select_from(Bid)) == 0
 
 
-def test_bid_respects_increment(
-    client, db_session, seller_token, bidder_token, bidder2_token, respx_mock
-):
+def test_bid_respects_increment(client, db_session, seller_token, bidder_token, bidder2_token, respx_mock):
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 50_000)
     _deposit(client, bidder2_token, 50_000)
@@ -121,9 +113,7 @@ def test_leader_cannot_raise(client, db_session, seller_token, bidder_token, res
     assert r.json()["code"] == "ALREADY_LEADING"
 
 
-def test_insufficient_funds_no_ledger(
-    client, db_session, seller_token, bidder_token, respx_mock
-):
+def test_insufficient_funds_no_ledger(client, db_session, seller_token, bidder_token, respx_mock):
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 5_000)
     before = db_session.scalar(select(func.count()).select_from(Ledger)) or 0
@@ -134,9 +124,7 @@ def test_insufficient_funds_no_ledger(
     assert after == before
 
 
-def test_outbid_releases_previous_reserve(
-    client, db_session, seller_token, bidder_token, bidder2_token, respx_mock
-):
+def test_outbid_releases_previous_reserve(client, db_session, seller_token, bidder_token, bidder2_token, respx_mock):
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 50_000)
     _deposit(client, bidder2_token, 50_000)
@@ -150,9 +138,7 @@ def test_outbid_releases_previous_reserve(
     assert w2["committed"]["cents"] == 10_500
 
 
-def test_concurrent_bids_one_leader(
-    client, db_session, seller_token, bidder_token, bidder2_token, respx_mock
-):
+def test_concurrent_bids_one_leader(client, db_session, seller_token, bidder_token, bidder2_token, respx_mock):
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 100_000)
     _deposit(client, bidder2_token, 100_000)
@@ -167,9 +153,7 @@ def test_concurrent_bids_one_leader(
 
 
 def test_anti_snipe_extends_end(client, db_session, seller_token, bidder_token, respx_mock):
-    aid = _make_live_auction(
-        client, db_session, seller_token, respx_mock, ends_in_seconds=90
-    )
+    aid = _make_live_auction(client, db_session, seller_token, respx_mock, ends_in_seconds=90)
     auction = db_session.get(Auction, uuid.UUID(aid))
     old_end = auction.ends_at
     _deposit(client, bidder_token, 50_000)
@@ -204,9 +188,7 @@ def test_bid_idempotent_replay(client, db_session, seller_token, bidder_token, r
     assert db_session.scalar(select(func.count()).select_from(Bid)) == 1
 
 
-def test_available_considers_other_lot_reserves(
-    client, db_session, seller_token, bidder_token, respx_mock
-):
+def test_available_considers_other_lot_reserves(client, db_session, seller_token, bidder_token, respx_mock):
     aid1 = _make_live_auction(client, db_session, seller_token, respx_mock, object_id=436535)
     aid2 = _make_live_auction(client, db_session, seller_token, respx_mock, object_id=436532)
     _deposit(client, bidder_token, 15_000)
@@ -240,9 +222,6 @@ def test_participant_status_leading(client, db_session, seller_token, bidder_tok
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 50_000)
     _bid(client, bidder_token, aid, 10_000)
-    r = client.get(
-        f"/api/v1/me/auctions/{aid}/status",
-        headers=auth_headers(bidder_token),
-    )
+    r = client.get(f"/api/v1/me/auctions/{aid}/status", headers=auth_headers(bidder_token))
     assert r.status_code == 200
     assert r.json()["position"] == "LEADING"
