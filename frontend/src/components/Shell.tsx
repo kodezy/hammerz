@@ -60,11 +60,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const auctionsIsCurrent = auctionsActive(pathname)
 
   return (
-    <div className="min-h-screen bg-bg bg-dots">
-      <header className={`${shellInset} pt-5 md:pt-6`}>
-        <div
-          className="flex h-[60px] items-stretch justify-between gap-4 rounded-2xl border border-border bg-surface/90 px-5 backdrop-blur-sm md:px-8"
-        >
+    <div className="min-h-screen bg-bg">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/95 backdrop-blur-sm">
+        <div className={`flex h-[60px] items-stretch justify-between gap-4 ${shellInset}`}>
           <div className="flex min-w-0 items-stretch gap-8 md:gap-14">
             <Link
               to="/"

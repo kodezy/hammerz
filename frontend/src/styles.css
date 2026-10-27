@@ -54,14 +54,3 @@
     font-family: var(--font-display);
   }
 }
-
-@layer utilities {
-  .bg-dots {
-    background-image: radial-gradient(
-      circle at center,
-      color-mix(in srgb, var(--color-border) 70%, transparent) 1px,
-      transparent 1px
-    );
-    background-size: 22px 22px;
-  }
-}
