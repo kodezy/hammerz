@@ -40,7 +40,7 @@ The seller dashboard reports about **$2,400** in proceeds from a settled demo lo
 
 ## Documentation
 
-Stack and module layout: [docs/architecture.md](docs/architecture.md).
+Stack and module layout: [docs/architecture.md](docs/architecture.md). Agent map: [AGENTS.md](AGENTS.md).
 
 ## Development
 
