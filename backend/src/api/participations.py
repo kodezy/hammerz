@@ -42,7 +42,7 @@ def _tab_match(session: Session, auction: Auction, user_id: uuid.UUID, tab: Tab,
     if tab == "PAST":
         if pos == "NOT_PARTICIPATING":
             return False
-        if tab == "PAST" and pos == "CANCELLED":
+        if pos == "CANCELLED":
             return True
         if auction.status == "CANCELLED":
             return True
@@ -52,7 +52,7 @@ def _tab_match(session: Session, auction: Auction, user_id: uuid.UUID, tab: Tab,
     return False
 
 
-def bids_and_wins(session: Session, user_id: uuid.UUID, tab: Tab, offset: int, limit: int) -> dict:
+def my_bids(session: Session, user_id: uuid.UUID, tab: Tab, offset: int, limit: int) -> dict:
     now = session.scalar(select(func.clock_timestamp()))
     auction_ids = _user_auction_ids(session, user_id)
     snapshots: list[dict] = []
@@ -102,12 +102,12 @@ def auction_participant_status(
     return participant_position(session, user.id, auction_id)
 
 
-@router.get("/bids-and-wins")
-def list_bids_and_wins(
+@router.get("/bids")
+def list_my_bids(
     tab: Tab = Query("ACTIVE"),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     user: User = Depends(require_bidder),
     session: Session = Depends(get_db),
 ) -> dict:
-    return bids_and_wins(session, user.id, tab, offset, limit)
+    return my_bids(session, user.id, tab, offset, limit)

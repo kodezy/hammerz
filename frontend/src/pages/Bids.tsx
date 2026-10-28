@@ -8,25 +8,9 @@ import { PageHeading } from '../components/PageHeading'
 import { PositionBadge } from '../components/PositionBadge'
 import { StatusBadge } from '../components/StatusBadge'
 import { TabNav } from '../components/TabNav'
-import { api } from '../lib/http'
-import type { DisplayStatus, Money as MoneyType, Position } from '../lib/types'
+import { listMyBids, type MyBidRow, type MyBidsTab } from '../features/bids'
 
-type Tab = 'ACTIVE' | 'WON' | 'PAST'
-
-type WinRow = {
-  id: string
-  display_no: number
-  display_status: DisplayStatus
-  position: Position
-  item: { title: string; image_url: string | null }
-  current_bid: MoneyType | null
-  opening_bid: MoneyType
-  bid_count?: number
-  user_last_bid?: MoneyType
-  receipt_id?: string
-}
-
-function participationMeta(tab: Tab, row: WinRow) {
+function bidMeta(tab: MyBidsTab, row: MyBidRow) {
   if ((tab === 'ACTIVE' && row.position === 'OUTBID' && row.user_last_bid) || (tab === 'PAST' && row.user_last_bid)) {
     return (
       <p className="text-[13px] text-muted">
@@ -37,39 +21,32 @@ function participationMeta(tab: Tab, row: WinRow) {
   return null
 }
 
-export function Wins() {
+export function Bids() {
   const { user } = useSession()
-  const [tab, setTab] = useState<Tab>('ACTIVE')
+  const [tab, setTab] = useState<MyBidsTab>('ACTIVE')
   const q = useQuery({
-    queryKey: ['wins', tab],
-    queryFn: () =>
-      api<{
-        items: WinRow[]
-        counts: { active: number; won: number; past: number }
-      }>(`/me/bids-and-wins?tab=${tab}&limit=20`),
+    queryKey: ['my-bids', tab],
+    queryFn: () => listMyBids(tab),
     enabled: !!user && user.role === 'BIDDER',
   })
 
   if (!user || user.role !== 'BIDDER') {
-    return <p className="text-muted">Sign in as a bidder to view participations.</p>
+    return <p className="text-muted">Sign in as a bidder to view your bids.</p>
   }
 
   const counts = q.data?.counts
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'ACTIVE', label: `Active bids${counts ? ` (${counts.active})` : ''}` },
+  const tabs: { key: MyBidsTab; label: string }[] = [
+    { key: 'ACTIVE', label: `Active${counts ? ` (${counts.active})` : ''}` },
     { key: 'WON', label: `Won${counts ? ` (${counts.won})` : ''}` },
     { key: 'PAST', label: `Past${counts ? ` (${counts.past})` : ''}` },
   ]
 
   return (
     <div className="space-y-8">
-      <PageHeading
-        title="My Bids & Wins"
-        subtitle="Follow your bids, revisit results and collect receipts."
-      />
+      <PageHeading title="Bids" subtitle="Follow active lots, won auctions, and past results." />
       <TabNav tabs={tabs} active={tab} onChange={setTab} />
       {q.isLoading && <p className="text-muted">Loading…</p>}
-      {q.isError && <p className="text-danger">Could not load bids and wins.</p>}
+      {q.isError && <p className="text-danger">Could not load bids.</p>}
       <ul className="flex flex-col gap-4">
         {q.data?.items.map((row) => {
           const amount = row.current_bid ?? row.opening_bid
@@ -90,7 +67,7 @@ export function Wins() {
                   <PositionBadge position={row.position} />
                 </>
               }
-              meta={participationMeta(tab, row)}
+              meta={bidMeta(tab, row)}
               actions={
                 <>
                   <ButtonLink to={`/lots/${row.id}`} className="w-full">

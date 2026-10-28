@@ -32,6 +32,8 @@ services:
     build:
       context: .
       dockerfile: infra/web.Dockerfile
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     ports:
       - "80:80"
       - "443:443"

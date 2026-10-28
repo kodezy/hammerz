@@ -86,6 +86,16 @@ export function Lot() {
   }, [id, refreshLot])
 
   useEffect(() => {
+    if (!id) return
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      refreshLot()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [id, refreshLot])
+
+  useEffect(() => {
     if (!user) return
     const records = listPending(user.id).filter((r) => r.path.includes(`/auctions/${id}/`))
     if (records.length === 0) return

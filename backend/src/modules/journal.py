@@ -231,6 +231,22 @@ class Journal:
                 return True
         return False
 
+    def references_auction(self, auction_id: uuid.UUID) -> bool:
+        aid = str(auction_id)
+        if not self.journal_path.exists():
+            return False
+        for raw_line in self.journal_path.read_text(encoding="utf-8").splitlines():
+            if not raw_line.strip():
+                continue
+            line = json.loads(raw_line)
+            if line.get("type") != "PREPARE":
+                continue
+            event = line.get("event") or {}
+            payload = event.get("payload") or {}
+            if payload.get("auction_id") == aid:
+                return True
+        return False
+
     def pending_prepare(self) -> dict | None:
         if self._pending_operation_id is None:
             return None

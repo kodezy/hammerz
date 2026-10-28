@@ -23,6 +23,26 @@ def test_search_maps_object(client, seller_token, respx_mock):
     assert r.json()["items"][0]["external_id"] == "436535"
 
 
+def test_search_strips_html_in_title(client, seller_token, respx_mock):
+    respx_mock.get("https://collectionapi.metmuseum.org/public/collection/v1.1/search").mock(
+        return_value=httpx.Response(200, json={"objectIDs": [123], "total": 1})
+    )
+    respx_mock.get("https://collectionapi.metmuseum.org/public/collection/v1/objects/123").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "objectID": 123,
+                "title": "Ceremonial Armors for Man (<i>Dingjia</i>) and Horse",
+                "primaryImage": "https://example.com/img.jpg",
+                "isPublicDomain": True,
+            },
+        )
+    )
+    r = client.get("/api/v1/catalog/search?q=armor", headers=auth_headers(seller_token))
+    assert r.status_code == 200
+    assert r.json()["items"][0]["title"] == "Ceremonial Armors for Man (Dingjia) and Horse"
+
+
 def test_bidder_forbidden(client, bidder_token):
     r = client.get("/api/v1/catalog/search?q=wheat", headers=auth_headers(bidder_token))
     assert r.status_code == 403

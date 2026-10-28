@@ -20,6 +20,7 @@
   --color-danger-soft: #fceef0;
   --color-warning: #895e18;
   --color-warning-soft: #fcf3df;
+  --color-scrim: rgb(37 33 46 / 0.45);
 }
 
 @layer theme {
@@ -40,6 +41,7 @@
     --color-danger-soft: #3c2532;
     --color-warning: #f4cd84;
     --color-warning-soft: #3d3125;
+    --color-scrim: rgb(0 0 0 / 0.72);
   }
 }
 

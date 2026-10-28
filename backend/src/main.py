@@ -13,10 +13,10 @@ from src.api.auctions import router as auctions_router
 from src.api.auth import router as auth_router
 from src.api.catalog import router as catalog_router
 from src.api.health import router as health_router
+from src.api.participations import router as participations_router
 from src.api.receipts import router as receipts_router
 from src.api.seller import router as seller_router
 from src.api.wallet import router as wallet_router
-from src.api.wins import router as wins_router
 from src.core.config import get_settings, parse_cors_origins
 from src.core.errors import AppError, ErrorBody, ErrorCode
 from src.core.limits import limiter
@@ -72,7 +72,7 @@ def create_app() -> FastAPI:
     application.include_router(catalog_router)
     application.include_router(auctions_router)
     application.include_router(wallet_router)
-    application.include_router(wins_router)
+    application.include_router(participations_router)
     application.include_router(receipts_router)
     application.include_router(seller_router)
 

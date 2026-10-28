@@ -1,5 +1,7 @@
 import asyncio
+import re
 import time
+from html import unescape
 from typing import Any
 
 import httpx
@@ -13,6 +15,17 @@ MET_HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Hammerz/1.0)"}
 SEARCH_TIMEOUT = 5.0
 DETAIL_CONCURRENCY = 4
 CACHE_TTL = 60.0
+
+_TAG_RE = re.compile(r"<[^>]*>")
+
+
+def _plain_met_text(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    text = unescape(_TAG_RE.sub("", raw))
+    text = " ".join(text.split())
+    return text or None
+
 
 _cache: dict[tuple[str, int, int], tuple[float, dict[str, Any]]] = {}
 
@@ -93,7 +106,7 @@ async def search_catalog(q: str, offset: int, limit: int) -> dict[str, Any]:
 _DEMO_OBJECT_SNAPSHOTS: dict[int, dict[str, Any]] = {
     436535: {
         "artist": "Vincent van Gogh",
-        "attribution": "Demo catalog snapshot",
+        "attribution": "Vincent van Gogh (1853–1890)",
         "description": "https://www.metmuseum.org/art/collection/search/436535",
         "external_id": "436535",
         "object_begin_date": 1889,
@@ -105,7 +118,7 @@ _DEMO_OBJECT_SNAPSHOTS: dict[int, dict[str, Any]] = {
     },
     436532: {
         "artist": "Vincent van Gogh",
-        "attribution": "Demo catalog snapshot",
+        "attribution": "Vincent van Gogh (1853–1890)",
         "description": "https://www.metmuseum.org/art/collection/search/436532",
         "external_id": "436532",
         "object_begin_date": 1887,
@@ -119,8 +132,9 @@ _DEMO_OBJECT_SNAPSHOTS: dict[int, dict[str, Any]] = {
 
 
 def _map_object(data: dict[str, Any]) -> dict[str, Any]:
-    artist = data.get("artistDisplayName") or None
+    artist = _plain_met_text(data.get("artistDisplayName"))
     begin = data.get("objectBeginDate")
+    title = _plain_met_text(data.get("title"))
     return {
         "artist": artist,
         "attribution": data.get("creditLine"),
@@ -131,7 +145,7 @@ def _map_object(data: dict[str, Any]) -> dict[str, Any]:
         "is_public_domain": bool(data.get("isPublicDomain")),
         "object_url": data.get("objectURL"),
         "provider": "met",
-        "title": data.get("title"),
+        "title": title,
     }
 
 

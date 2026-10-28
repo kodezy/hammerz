@@ -19,7 +19,7 @@ type SessionState = {
 
 const SessionContext = createContext<SessionState | null>(null)
 
-const BIDDER_PATHS = ['/', '/wallet', '/my-wins', '/lots']
+const BIDDER_PATHS = ['/', '/wallet', '/bids', '/lots']
 const SELLER_PATHS = ['/', '/seller', '/lots']
 
 export function isReturnToAllowed(role: Role | null, path: string): boolean {

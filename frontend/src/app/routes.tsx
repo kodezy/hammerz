@@ -7,7 +7,7 @@ import { Receipt } from '../pages/Receipt'
 import { Register } from '../pages/Register'
 import { Seller } from '../pages/Seller'
 import { Wallet } from '../pages/Wallet'
-import { Wins } from '../pages/Wins'
+import { Bids } from '../pages/Bids'
 
 export function AppRoutes() {
   return (
@@ -17,7 +17,7 @@ export function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/seller" element={<Seller />} />
       <Route path="/wallet" element={<Wallet />} />
-      <Route path="/my-wins" element={<Wins />} />
+      <Route path="/bids" element={<Bids />} />
       <Route path="/lots/:id/audit" element={<Audit />} />
       <Route path="/lots/:id" element={<Lot />} />
       <Route path="/receipts/:id" element={<Receipt />} />

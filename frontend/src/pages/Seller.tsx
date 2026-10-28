@@ -1,19 +1,16 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
 import { useSession } from '../app/session'
 import { useToast } from '../app/toast'
 import { AuctionListRow } from '../components/AuctionListRow'
 import { Banner } from '../components/Banner'
 import { Button, ButtonLink } from '../components/Button'
 import { Card } from '../components/Card'
+import { CreateLotModal } from '../components/CreateLotModal'
 import { Money } from '../components/Money'
 import { PageHeading } from '../components/PageHeading'
 import { TabNav } from '../components/TabNav'
-import { TextField } from '../components/TextField'
-import { searchCatalog, type CatalogItem } from '../features/catalog'
-import { createLot, sellerAuctions } from '../features/lots'
-import { httpErrorMessage } from '../lib/http'
-import { parseDollarsToCents } from '../lib/money'
+import { sellerAuctions } from '../features/lots'
 import type { DisplayStatus, Money as MoneyType } from '../lib/types'
 
 type SellerTab = 'LIVE' | 'SCHEDULED' | 'ENDED' | 'CANCELLED'
@@ -36,30 +33,29 @@ const sellerTabs: { key: SellerTab; label: string }[] = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ]
 
-const CATALOG_INPUT_ID = 'seller-catalog-q'
+function emptyTabMessage(tab: SellerTab): string {
+  switch (tab) {
+    case 'LIVE':
+      return 'No live lots right now. Check Upcoming or Ended for your listings.'
+    case 'SCHEDULED':
+      return 'No upcoming lots.'
+    case 'ENDED':
+      return 'No ended lots on this tab.'
+    case 'CANCELLED':
+      return 'No cancelled lots on this tab.'
+  }
+}
 
 export function Seller() {
   const { user } = useSession()
   const { showToast } = useToast()
-  const qc = useQueryClient()
   const [lotTab, setLotTab] = useState<SellerTab>('LIVE')
-  const [q, setQ] = useState('')
-  const [search, setSearch] = useState('')
-  const catalog = useQuery({
-    queryKey: ['catalog', search],
-    queryFn: () => searchCatalog(search),
-    enabled: !!user && user.role === 'SELLER' && search.length > 0,
-  })
+  const [createOpen, setCreateOpen] = useState(false)
   const lots = useQuery({
     queryKey: ['seller-lots', lotTab],
     queryFn: () => sellerAuctions(lotTab),
     enabled: !!user && user.role === 'SELLER',
   })
-  const [opening, setOpening] = useState('100')
-  const [increment, setIncrement] = useState('10')
-  const [selected, setSelected] = useState<CatalogItem | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [publishing, setPublishing] = useState(false)
 
   const { chartRows, chartMax } = useMemo(() => {
     if (lotTab !== 'ENDED') return { chartRows: [], chartMax: 0 }
@@ -75,10 +71,12 @@ export function Seller() {
   }, [lotTab, lots.data?.items])
 
   if (!user || user.role !== 'SELLER') {
-    return <p className="text-muted">Seller dashboard requires a seller account.</p>
+    return <p className="text-muted">Dashboard requires a seller account.</p>
   }
 
   const counts = lots.data?.counts
+  const items = lots.data?.items ?? []
+  const showEmpty = !lots.isLoading && !lots.isError && items.length === 0
 
   const tabLabels = sellerTabs.map((t) => {
     const n =
@@ -95,52 +93,27 @@ export function Seller() {
     }
   })
 
-  async function onCreate(e: FormEvent) {
-    e.preventDefault()
-    if (!selected) return
-    const openCents = parseDollarsToCents(opening)
-    const incCents = parseDollarsToCents(increment)
-    if (!openCents || !incCents) {
-      setError('Invalid amounts')
-      return
-    }
-    const starts = new Date()
-    starts.setMinutes(starts.getMinutes() + 5)
-    const ends = new Date(starts)
-    ends.setHours(ends.getHours() + 2)
-    setPublishing(true)
-    try {
-      await createLot({
-        external_id: selected.external_id,
-        opening_bid_cents: openCents,
-        minimum_increment_cents: incCents,
-        starts_at: starts.toISOString(),
-        ends_at: ends.toISOString(),
-      })
-      setSelected(null)
-      setQ('')
-      setSearch('')
-      setError(null)
-      setLotTab('SCHEDULED')
-      showToast('Lot published. It goes live in about 5 minutes and appears under Upcoming.')
-      await qc.invalidateQueries({ queryKey: ['seller-lots'] })
-      qc.removeQueries({ queryKey: ['catalog'] })
-    } catch (err) {
-      setError(httpErrorMessage(err, 'Create failed'))
-    } finally {
-      setPublishing(false)
-    }
-  }
-
-  const catalogItems = catalog.data?.items ?? []
-  const searched = search.length > 0
-
   return (
     <div className="space-y-8">
       <PageHeading
-        title="Seller dashboard"
+        title="Dashboard"
         subtitle="Manage lots, proceeds, and new listings."
+        action={
+          <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+            New lot
+          </Button>
+        }
       />
+
+      {createOpen ? (
+        <CreateLotModal
+          onClose={() => setCreateOpen(false)}
+          onPublished={() => {
+            setLotTab('SCHEDULED')
+            showToast('Lot published. It goes live in about 5 minutes and appears under Upcoming.')
+          }}
+        />
+      ) : null}
 
       <section className="space-y-8">
         {lots.data && (
@@ -173,8 +146,9 @@ export function Seller() {
         )}
         {lots.isLoading && <p className="text-muted">Loading…</p>}
         {lots.isError && <p className="text-danger">Could not load your lots.</p>}
+        {showEmpty && <p className="text-muted">{emptyTabMessage(lotTab)}</p>}
         <ul className="flex flex-col gap-4">
-          {lots.data?.items.map((row) => {
+          {items.map((row) => {
             const r = row as SellerRow
             const amount = r.current_bid ?? r.opening_bid
             const count = r.bid_count ?? 0
@@ -204,97 +178,6 @@ export function Seller() {
             )
           })}
         </ul>
-      </section>
-
-      <section>
-        <Card>
-          <h2 className="font-semibold text-text">Create a lot</h2>
-          <p className="mt-1 mb-4 text-sm text-muted">
-            Search the Met collection, select a work, then set the opening bid. New lots start in
-            about 5 minutes and appear under Upcoming.
-          </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              const needle = q.trim()
-              if (!needle) return
-              setError(null)
-              setSelected(null)
-              setSearch(needle)
-            }}
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          >
-            <div className="min-w-0 flex-1">
-              <TextField
-                id={CATALOG_INPUT_ID}
-                label="Search Met collection"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Artist or title"
-                autoComplete="off"
-                required
-              />
-            </div>
-            <Button type="submit" className="shrink-0 sm:w-[244px]" disabled={catalog.isFetching}>
-              Search
-            </Button>
-          </form>
-          {searched && catalog.isFetching && catalogItems.length === 0 && (
-            <p className="mt-4 text-sm text-muted">Searching…</p>
-          )}
-          {searched && catalog.isError && (
-            <p className="mt-4 text-sm text-danger">Could not search the catalog.</p>
-          )}
-          {searched && catalog.isSuccess && !catalog.isFetching && catalogItems.length === 0 && (
-            <p className="mt-4 text-sm text-muted">
-              No matching works. Try another artist or title.
-            </p>
-          )}
-          {searched && catalogItems.length > 0 && (
-            <ul className="mt-4 space-y-2">
-              {catalogItems.map((item) => (
-                <li key={item.external_id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelected(item)
-                      setError(null)
-                    }}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
-                      selected?.external_id === item.external_id
-                        ? 'border-brand bg-brand-soft'
-                        : 'border-border'
-                    }`}
-                  >
-                    {item.title} — {item.artist ?? 'Not stated'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {selected && (
-            <form onSubmit={onCreate} className="mt-6 space-y-4 border-t border-border pt-6">
-              <p className="text-sm text-text">
-                Selected · {selected.title}
-                {selected.artist ? ` — ${selected.artist}` : ''}
-              </p>
-              <TextField
-                label="Opening bid (USD)"
-                value={opening}
-                onChange={(e) => setOpening(e.target.value)}
-              />
-              <TextField
-                label="Minimum increment (USD)"
-                value={increment}
-                onChange={(e) => setIncrement(e.target.value)}
-              />
-              {error && <Banner variant="danger">{error}</Banner>}
-              <Button type="submit" disabled={publishing}>
-                {publishing ? 'Publishing…' : 'Publish lot'}
-              </Button>
-            </form>
-          )}
-        </Card>
       </section>
     </div>
   )

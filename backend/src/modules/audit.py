@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from src.core.canon import dumps as canon_dumps
 from src.core.canon import event_mac, secret_key_id
 from src.core.config import get_settings
-from src.db.tables import Event
+from src.db.tables import Auction, Bid, Event
 
 
 def build_event_payload(
@@ -95,11 +95,51 @@ def _public_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _check_auction_rules(session: Session, auction: Auction, events: list[Event], reason_codes: list[str]) -> None:
+    created = next((ev for ev in events if ev.type == "AUCTION_CREATED"), None)
+    if created is None:
+        reason_codes.append("AUCTION_CREATED_MISSING")
+        return
+    rules = created.payload.get("rules") or {}
+    if rules.get("opening_bid_cents") != auction.opening_bid_cents:
+        reason_codes.append("OPENING_BID_MISMATCH")
+    if rules.get("minimum_increment_cents") != auction.minimum_increment_cents:
+        reason_codes.append("MINIMUM_INCREMENT_MISMATCH")
+
+
+def _check_bids_and_projection(
+    session: Session, auction: Auction | None, events: list[Event], reason_codes: list[str]
+) -> None:
+    from sqlalchemy import select
+
+    from src.db.tables import Bid
+
+    if auction is None:
+        return
+    accept_events = [ev for ev in events if ev.type == "BID_ACCEPTED"]
+    db_bids = list(session.scalars(select(Bid).where(Bid.auction_id == auction.id).order_by(Bid.sequence.asc())).all())
+    if len(accept_events) != len(db_bids):
+        reason_codes.append("BID_COUNT_MISMATCH")
+    else:
+        for ev, bid in zip(accept_events, db_bids, strict=True):
+            if ev.bid_id != bid.id:
+                reason_codes.append("BID_ID_MISMATCH")
+            elif bid.sequence != ev.payload.get("bid_sequence"):
+                reason_codes.append("BID_SEQUENCE_MISMATCH")
+            elif bid.bidder_id != uuid.UUID(str(ev.payload.get("actor_id"))):
+                reason_codes.append("BIDDER_MISMATCH")
+    if db_bids:
+        last = db_bids[-1]
+        if auction.current_leader_id != last.bidder_id or auction.current_bid_cents != last.amount_cents:
+            reason_codes.append("AUCTION_PROJECTION_MISMATCH")
+    elif auction.current_leader_id is not None or auction.current_bid_cents is not None:
+        reason_codes.append("AUCTION_PROJECTION_MISMATCH")
+
+
 def verify_auction(session: Session, journal, auction_id: uuid.UUID) -> dict[str, Any]:
     from sqlalchemy import select
 
     from src.core.errors import AppError, ErrorCode
-    from src.db.tables import Auction, Bid, Event
 
     checked_at = datetime.now(UTC)
     if journal.blocked or journal.pending_prepare() is not None:
@@ -115,6 +155,14 @@ def verify_auction(session: Session, journal, auction_id: uuid.UUID) -> dict[str
     events = session.scalars(select(Event).where(Event.auction_id == auction_id).order_by(Event.sequence.asc())).all()
 
     if auction is None and not events:
+        if journal.references_auction(auction_id):
+            return {
+                "checked_at": checked_at,
+                "head": None,
+                "last_committed_seq": None,
+                "reason_codes": ["AUCTION_PURGED"],
+                "status": "TAMPERED",
+            }
         raise AppError(404, ErrorCode.NOT_FOUND, "Auction not found")
     if auction is None and events:
         return {
@@ -127,13 +175,18 @@ def verify_auction(session: Session, journal, auction_id: uuid.UUID) -> dict[str
 
     reason_codes: list[str] = []
     prev = genesis_event_hash()
+    chain_ok = True
     for ev in events:
+        if not chain_ok:
+            break
         if ev.prev_hash != prev:
             reason_codes.append("EVENT_CHAIN_BREAK")
+            chain_ok = False
             break
         expected = sign_event(ev.payload, ev.prev_hash)
         if expected != ev.event_hash:
             reason_codes.append("EVENT_HASH_MISMATCH")
+            chain_ok = False
             break
         if not journal.has_commit(ev.operation_id):
             reason_codes.append("JOURNAL_COMMIT_MISSING")
@@ -144,6 +197,10 @@ def verify_auction(session: Session, journal, auction_id: uuid.UUID) -> dict[str
                 reason_codes.append("BID_ROW_MISSING")
             elif bid.amount_cents != ev.payload.get("amount_cents"):
                 reason_codes.append("BID_AMOUNT_MISMATCH")
+
+    if auction is not None:
+        _check_auction_rules(session, auction, events, reason_codes)
+        _check_bids_and_projection(session, auction, events, reason_codes)
 
     status = "VERIFIED" if not reason_codes else "TAMPERED"
     return {

@@ -76,8 +76,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
               {user?.role === 'BIDDER' && (
                 <>
-                  <NavLink to="/my-wins" className={({ isActive }) => navItemClass(isActive)}>
-                    My Bids &amp; Wins
+                  <NavLink to="/bids" className={({ isActive }) => navItemClass(isActive)}>
+                    Bids
                   </NavLink>
                   <NavLink to="/wallet" className={({ isActive }) => navItemClass(isActive)}>
                     Wallet
@@ -86,7 +86,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               )}
               {user?.role === 'SELLER' && (
                 <NavLink to="/seller" className={({ isActive }) => navItemClass(isActive)}>
-                  Seller dashboard
+                  Dashboard
                 </NavLink>
               )}
             </nav>

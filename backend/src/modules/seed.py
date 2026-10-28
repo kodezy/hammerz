@@ -26,7 +26,7 @@ DEMO_PASSWORDS = {
     SEED_BIDDER1: "Bidder1-Demo-2026!",
     SEED_BIDDER2: "Bidder2-Demo-2026!",
 }
-OPENING = {SEED_BIDDER1: 1_240_000, SEED_BIDDER2: 1_000_000, SEED_SELLER: 0}
+OPENING = {SEED_BIDDER1: 1_000_000, SEED_BIDDER2: 1_000_000, SEED_SELLER: 0}
 SEED_KEY_NS = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 
@@ -131,11 +131,10 @@ async def run_seed(*, ensure_live: bool = False) -> None:
 
     now = datetime.now(UTC)
     windows = [
-        (1, 436535, 95_000, 5_000, now - timedelta(minutes=5), now + timedelta(minutes=30), "live"),
-        (2, 436532, 145_000, 5_000, now - timedelta(minutes=2), now + timedelta(minutes=45), "live"),
-        (3, 436535, 230_000, 5_000, now - timedelta(hours=2), now - timedelta(minutes=10), "settled"),
-        (4, 436532, 100_000, 5_000, now + timedelta(hours=2), now + timedelta(hours=4), "future"),
-        (5, 436535, 100_000, 5_000, now - timedelta(minutes=30), now + timedelta(hours=1), "cancel"),
+        (436535, 100_000, 5_000, now - timedelta(minutes=1), now + timedelta(minutes=45), "eval_live"),
+        (436532, 230_000, 5_000, now - timedelta(hours=2), now - timedelta(minutes=10), "settled"),
+        (436532, 100_000, 5_000, now + timedelta(hours=2), now + timedelta(hours=4), "future"),
+        (436535, 100_000, 5_000, now - timedelta(minutes=30), now + timedelta(hours=1), "cancel"),
     ]
 
     with get_session_factory()() as session:
@@ -145,10 +144,10 @@ async def run_seed(*, ensure_live: bool = False) -> None:
         if seller is None or bidder1 is None or bidder2 is None:
             raise RuntimeError("seed users missing after provisioning")
 
-        if (session.scalar(select(func.count()).select_from(Auction)) or 0) >= 5:
+        if (session.scalar(select(func.count()).select_from(Auction)) or 0) >= 4:
             pass
         else:
-            for display_no, met_id, opening, increment, starts, ends, kind in windows:
+            for met_id, opening, increment, starts, ends, kind in windows:
                 defer_window = kind == "settled"
                 auction = await _create_auction_window(
                     session,
@@ -161,17 +160,8 @@ async def run_seed(*, ensure_live: bool = False) -> None:
                     ends,
                     apply_window=not defer_window,
                 )
-                if kind == "live" and auction.status == "OPEN":
-                    if display_no == 1:
-                        lot1: list[tuple[User, int]] = []
-                        amount = 95_000
-                        for i in range(12):
-                            bidder = bidder1 if i % 2 == 0 else bidder2
-                            lot1.append((bidder, amount))
-                            amount += 5_000
-                        await _seed_bids(session, auction.id, "lot1", lot1)
-                    elif display_no == 2:
-                        await _seed_bids(session, auction.id, "lot2", [(bidder2, 145_000), (bidder1, 150_000)])
+                if kind == "eval_live" and auction.status == "OPEN":
+                    await _seed_bids(session, auction.id, "eval-live", [(bidder2, 100_000), (bidder1, 150_000)])
                 if kind == "settled" and auction.status == "OPEN":
                     await _seed_bids(
                         session, auction.id, "lot3", [(bidder1, 230_000), (bidder2, 235_000), (bidder1, 240_000)]
@@ -180,9 +170,9 @@ async def run_seed(*, ensure_live: bool = False) -> None:
                     _apply_auction_window(session, auction, starts, ends)
                 if kind == "cancel" and auction.status == "OPEN":
                     await _seed_bids(
-                        session, auction.id, "lot5", [(bidder2, 100_000), (bidder1, 105_000), (bidder2, 110_000)]
+                        session, auction.id, "lot4", [(bidder2, 100_000), (bidder1, 105_000), (bidder2, 110_000)]
                     )
-                    ckey = uuid.uuid5(SEED_KEY_NS, "lot5-cancel")
+                    ckey = uuid.uuid5(SEED_KEY_NS, "lot4-cancel")
                     fp = request_fingerprint(
                         "POST",
                         f"/api/v1/auctions/{auction.id}/cancel",

@@ -22,7 +22,7 @@ Public `/register` creates **bidder** accounts with $0 wallets. Sellers are prov
 | --- | :---: | :---: | :---: |
 | Vitrine, lot room, public bid history, audit, receipt | Yes | Yes | Yes |
 | Create / manage own lots, cancel, proceeds | No | Yes | No |
-| Simulated deposit, bid, wallet, my wins | No | No | Yes |
+| Simulated deposit, bid, wallet, bids list | No | No | Yes |
 
 ## Auth and session
 
@@ -120,7 +120,7 @@ Tamper demo, backup pairing, and crash behavior: [docs/architecture.md](docs/arc
 | GET | `/me/auctions/{id}/status` | Bidder | Private position |
 | GET | `/wallet` | Bidder | Balances |
 | POST | `/wallet/deposits` | Bidder | Simulated deposit |
-| GET | `/me/bids-and-wins` | Bidder | Participations |
+| GET | `/me/bids` | Bidder | Bidder participations by tab |
 | GET | `/receipts/{id}` | Public | Settlement receipt |
 | GET | `/health/live` | Public | Process up |
 | GET | `/health/ready` | Public | DB + journal ready for audited writes |
