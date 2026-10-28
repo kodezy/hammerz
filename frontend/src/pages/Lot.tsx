@@ -21,6 +21,7 @@ import {
 } from '../features/lots'
 import { getWallet } from '../features/wallet'
 import {
+  acceptedBidsLine,
   leaderLine,
   lotArtworkLine,
   minimumBidLine,
@@ -471,15 +472,21 @@ export function Lot() {
       {!cancelled && (
         <section>
           <h2 className="mb-2 font-medium">Latest bids</h2>
+          {bidsQ.isLoading && <p className="text-sm text-muted">Loading…</p>}
           {bidsQ.isError && <p className="mb-2 text-sm text-danger">Could not load bids.</p>}
-          <ul className="space-y-1 text-sm">
-            {bidItems.map((b) => (
-              <li key={b.sequence}>
-                #{b.sequence} · {formatBidTimestamp(b.accepted_at)} — {b.bidder_alias} —{' '}
-                <Money value={{ cents: b.amount_cents, currency: 'USD' }} />
-              </li>
-            ))}
-          </ul>
+          {!bidsQ.isLoading && !bidsQ.isError && bidItems.length === 0 && (
+            <p className="text-sm text-muted">{acceptedBidsLine(null, 0)}</p>
+          )}
+          {bidItems.length > 0 && (
+            <ul className="space-y-1 text-sm">
+              {bidItems.map((b) => (
+                <li key={b.sequence}>
+                  #{b.sequence} · {formatBidTimestamp(b.accepted_at)} — {b.bidder_alias} —{' '}
+                  <Money value={{ cents: b.amount_cents, currency: 'USD' }} />
+                </li>
+              ))}
+            </ul>
+          )}
           {bidItems.length >= 20 && (
             <Button
               type="button"

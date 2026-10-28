@@ -44,7 +44,9 @@ export function AuctionListRow({
       <div className="relative h-[148px] w-full shrink-0 overflow-hidden rounded-[10px] bg-bg sm:w-[170px]">
         {imageUrl ? (
           <img src={imageUrl} alt="" className="h-full w-full object-cover" />
-        ) : null}
+        ) : (
+          <span className="flex h-full items-center justify-center text-sm text-muted">No image</span>
+        )}
       </div>
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">

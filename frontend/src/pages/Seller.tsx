@@ -6,11 +6,10 @@ import { AuctionListRow } from '../components/AuctionListRow'
 import { Banner } from '../components/Banner'
 import { Button, ButtonLink } from '../components/Button'
 import { Card } from '../components/Card'
-import { MarketingHero } from '../components/MarketingHero'
+import { Money } from '../components/Money'
 import { PageHeading } from '../components/PageHeading'
 import { TabNav } from '../components/TabNav'
 import { TextField } from '../components/TextField'
-import { Money } from '../components/Money'
 import { searchCatalog, type CatalogItem } from '../features/catalog'
 import { createLot, sellerAuctions } from '../features/lots'
 import { httpErrorMessage, httpErrorToastVariant } from '../lib/http'
@@ -28,7 +27,6 @@ type SellerRow = {
   opening_bid: MoneyType
   bid_count?: number
   receipt_id?: string
-  cancel_reason?: string
 }
 
 const sellerTabs: { key: SellerTab; label: string }[] = [
@@ -38,11 +36,13 @@ const sellerTabs: { key: SellerTab; label: string }[] = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ]
 
+const CATALOG_INPUT_ID = 'seller-catalog-q'
+
 export function Seller() {
   const { user } = useSession()
   const { showToast } = useToast()
   const qc = useQueryClient()
-  const catalogRef = useRef<HTMLDivElement>(null)
+  const createRef = useRef<HTMLElement>(null)
   const [lotTab, setLotTab] = useState<SellerTab>('LIVE')
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
@@ -58,7 +58,7 @@ export function Seller() {
   })
   const [opening, setOpening] = useState('100')
   const [increment, setIncrement] = useState('10')
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<CatalogItem | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
 
@@ -96,6 +96,11 @@ export function Seller() {
     }
   })
 
+  function goToCreate() {
+    createRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById(CATALOG_INPUT_ID)?.focus()
+  }
+
   async function onCreate(e: FormEvent) {
     e.preventDefault()
     if (!selected) return
@@ -113,17 +118,20 @@ export function Seller() {
     setPublishing(true)
     try {
       await createLot({
-        external_id: selected,
+        external_id: selected.external_id,
         opening_bid_cents: openCents,
         minimum_increment_cents: incCents,
         starts_at: starts.toISOString(),
         ends_at: ends.toISOString(),
       })
       setSelected(null)
+      setQ('')
+      setSearch('')
       setError(null)
       setLotTab('SCHEDULED')
-      showToast('Lot published. It goes live in about 5 minutes.')
+      showToast('Lot published. It goes live in about 5 minutes and appears under Upcoming.')
       await qc.invalidateQueries({ queryKey: ['seller-lots'] })
+      qc.removeQueries({ queryKey: ['catalog'] })
     } catch (err) {
       const message = httpErrorMessage(err, 'Create failed')
       setError(message)
@@ -133,19 +141,120 @@ export function Seller() {
     }
   }
 
+  const catalogItems = catalog.data?.items ?? []
+  const searched = search.length > 0
+
   return (
-    <div className="space-y-10">
-      <MarketingHero />
-      <section className="space-y-8">
-        <PageHeading
-          title="Seller dashboard"
-          subtitle="Manage your lots and follow every result."
-          action={
-            <Button type="button" onClick={() => catalogRef.current?.scrollIntoView({ behavior: 'smooth' })}>
-              Create a lot
+    <div className="space-y-8">
+      <PageHeading
+        title="Seller dashboard"
+        subtitle="Publish lots and follow results."
+        action={
+          <Button type="button" onClick={goToCreate}>
+            Create a lot
+          </Button>
+        }
+      />
+
+      <section ref={createRef} id="create-lot" className="scroll-mt-20">
+        <Card>
+          <h2 className="font-semibold text-text">Create a lot</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
+            Search the Met collection, select a work, then set the opening bid. New lots start in
+            about 5 minutes and appear under Upcoming.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              const needle = q.trim()
+              if (!needle) return
+              setError(null)
+              setSelected(null)
+              setSearch(needle)
+            }}
+            className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          >
+            <div className="min-w-0 flex-1">
+              <TextField
+                id={CATALOG_INPUT_ID}
+                label="Search Met collection"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Artist or title"
+                autoComplete="off"
+                required
+              />
+            </div>
+            <Button type="submit" className="shrink-0 sm:w-[244px]" disabled={catalog.isFetching}>
+              Search
             </Button>
-          }
-        />
+          </form>
+          {!searched && (
+            <p className="mt-4 text-sm text-muted">No search yet. Enter an artist or title.</p>
+          )}
+          {searched && catalog.isFetching && catalogItems.length === 0 && (
+            <p className="mt-4 text-sm text-muted">Searching…</p>
+          )}
+          {searched && catalog.isError && (
+            <p className="mt-4 text-sm text-danger">Could not search the catalog.</p>
+          )}
+          {searched && catalog.isSuccess && !catalog.isFetching && catalogItems.length === 0 && (
+            <p className="mt-4 text-sm text-muted">
+              No matching works yet. Try another artist or title.
+            </p>
+          )}
+          {searched && catalogItems.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {catalogItems.map((item) => (
+                <li key={item.external_id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelected(item)
+                      setError(null)
+                    }}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
+                      selected?.external_id === item.external_id
+                        ? 'border-brand bg-brand-soft'
+                        : 'border-border'
+                    }`}
+                  >
+                    {item.title} — {item.artist ?? 'Not stated'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {searched && catalogItems.length > 0 && !selected && (
+            <p className="mt-3 text-sm text-muted">Select a work to set the opening bid.</p>
+          )}
+          {selected && (
+            <form onSubmit={onCreate} className="mt-6 space-y-4 border-t border-border pt-6">
+              <p className="text-sm text-text">
+                Selected · {selected.title}
+                {selected.artist ? ` — ${selected.artist}` : ''}
+              </p>
+              <TextField
+                label="Opening bid (USD)"
+                value={opening}
+                onChange={(e) => setOpening(e.target.value)}
+              />
+              <TextField
+                label="Minimum increment (USD)"
+                value={increment}
+                onChange={(e) => setIncrement(e.target.value)}
+              />
+              {error && <Banner variant="danger">{error}</Banner>}
+              <Button type="submit" disabled={publishing}>
+                {publishing ? 'Publishing…' : 'Publish lot'}
+              </Button>
+            </form>
+          )}
+        </Card>
+      </section>
+
+      <section className="space-y-8">
+        <h2 className="font-semibold text-text">Your lots</h2>
         {lots.data && (
           <Banner variant="info">
             Total received ·{' '}
@@ -155,7 +264,7 @@ export function Seller() {
         <TabNav tabs={tabLabels} active={lotTab} onChange={setLotTab} />
         {lotTab === 'ENDED' && chartRows.length > 0 && chartMax > 0 && (
           <Card className="space-y-3">
-            <h2 className="font-semibold text-text">Proceeds by lot</h2>
+            <h3 className="font-semibold text-text">Proceeds by lot</h3>
             <ul className="space-y-3">
               {chartRows.map((row) => (
                 <li key={row.id} className="space-y-1">
@@ -201,79 +310,16 @@ export function Seller() {
                         View receipt
                       </ButtonLink>
                     ) : null}
-                    {r.cancel_reason ? (
-                      <ButtonLink to={`/lots/${r.id}`} className="w-full">
-                        View reason
-                      </ButtonLink>
-                    ) : null}
                   </>
                 }
               />
             )
           })}
         </ul>
-        {lots.data?.items.length === 0 && <p className="text-muted">No lots in this tab.</p>}
+        {!lots.isLoading && !lots.isError && lots.data?.items.length === 0 && (
+          <p className="text-muted">No lots in this tab yet.</p>
+        )}
       </section>
-      <div ref={catalogRef}>
-        <Card>
-          <h2 className="mb-4 font-semibold text-text">Catalog search</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              setSearch(q)
-            }}
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          >
-            <div className="min-w-0 flex-1">
-              <TextField
-                label="Search Met collection"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Artist or title"
-              />
-            </div>
-            <Button type="submit" className="shrink-0 sm:w-[244px]">Search</Button>
-          </form>
-          {catalog.isLoading && <p className="mt-4 text-sm text-muted">Loading…</p>}
-          {catalog.isError && <p className="mt-4 text-sm text-danger">Could not search the catalog.</p>}
-          {catalog.isSuccess && catalog.data.items.length === 0 && (
-            <p className="mt-4 text-sm text-muted">No matching works. Try another artist or title.</p>
-          )}
-          <ul className="mt-4 space-y-2">
-            {catalog.data?.items.map((item: CatalogItem) => (
-              <li key={item.external_id}>
-                <button
-                  type="button"
-                  onClick={() => setSelected(item.external_id)}
-                  className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
-                    selected === item.external_id ? 'border-brand bg-brand-soft' : 'border-border'
-                  }`}
-                >
-                  {item.title} — {item.artist ?? 'Not stated'}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {selected && (
-            <form onSubmit={onCreate} className="mt-6 space-y-4 border-t border-border pt-6">
-              <TextField
-                label="Opening bid (USD)"
-                value={opening}
-                onChange={(e) => setOpening(e.target.value)}
-              />
-              <TextField
-                label="Minimum increment (USD)"
-                value={increment}
-                onChange={(e) => setIncrement(e.target.value)}
-              />
-              {error && <Banner variant="danger">{error}</Banner>}
-              <Button type="submit" disabled={publishing}>
-                {publishing ? 'Publishing…' : 'Publish lot'}
-              </Button>
-            </form>
-          )}
-        </Card>
-      </div>
     </div>
   )
 }

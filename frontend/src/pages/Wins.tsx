@@ -104,7 +104,9 @@ export function Wins() {
       <TabNav tabs={tabs} active={tab} onChange={setTab} />
       {q.isLoading && <p className="text-muted">Loading…</p>}
       {q.isError && <p className="text-danger">Could not load bids and wins.</p>}
-      {q.data?.items.length === 0 && <p className="text-muted">No items in this tab.</p>}
+      {!q.isLoading && !q.isError && q.data?.items.length === 0 && (
+        <p className="text-muted">No items in this tab yet.</p>
+      )}
       <ul className="flex flex-col gap-4">
         {q.data?.items.map((row) => {
           const amount = row.current_bid ?? row.opening_bid
