@@ -101,7 +101,7 @@ docker compose exec backend seed-demo --ensure-live
 
 ## Session note
 
-JWT is stored in `sessionStorage` (`hammerz:token`), so reload on the same tab keeps you signed in. Spec §3.2 described memory-only sessions; this is an intentional UX choice.
+Sign-in persists across tab closes via an HttpOnly refresh cookie (`hammerz_refresh`). The access JWT stays in memory only (not `localStorage` or `sessionStorage`).
 
 ## Optional features delivered
 

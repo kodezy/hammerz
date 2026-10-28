@@ -32,8 +32,25 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     wallet: Mapped["Wallet"] = relationship(back_populates="user", uselist=False)
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user")
 
     __table_args__ = (CheckConstraint("role IN ('SELLER', 'BIDDER')", name="users_role_check"),)
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="refresh_tokens")
+
+    __table_args__ = (Index("refresh_tokens_user_id_idx", "user_id"),)
 
 
 class Wallet(Base):

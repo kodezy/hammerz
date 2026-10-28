@@ -7,35 +7,17 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { api, HttpError, setAuthToken, setUnauthorizedHandler } from '../lib/http'
+import { api, setAuthToken, setUnauthorizedHandler } from '../lib/http'
 import type { Role, User } from '../lib/types'
 
 type SessionState = {
   user: User | null
+  ready: boolean
   login: (email: string, password: string) => Promise<User>
   logout: () => void
 }
 
 const SessionContext = createContext<SessionState | null>(null)
-
-const TOKEN_KEY = 'hammerz:token'
-
-function readStoredToken(): string | null {
-  try {
-    return sessionStorage.getItem(TOKEN_KEY)
-  } catch {
-    return null
-  }
-}
-
-function writeStoredToken(value: string | null): void {
-  try {
-    if (value) sessionStorage.setItem(TOKEN_KEY, value)
-    else sessionStorage.removeItem(TOKEN_KEY)
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
 
 const BIDDER_PATHS = ['/', '/wallet', '/my-wins', '/lots']
 const SELLER_PATHS = ['/', '/seller', '/lots']
@@ -59,64 +41,55 @@ export function defaultHome(role: Role | null): string {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(() => {
-    const stored = readStoredToken()
-    if (stored) setAuthToken(stored)
-    return stored
-  })
+  const [ready, setReady] = useState(false)
 
-  const logout = useCallback(() => {
-    setToken(null)
+  const clearSession = useCallback(() => {
     setUser(null)
     setAuthToken(null)
-    writeStoredToken(null)
   }, [])
 
-  useEffect(() => {
-    setUnauthorizedHandler(() => {
-      setToken(null)
-      setUser(null)
-      setAuthToken(null)
-      writeStoredToken(null)
-    })
-  }, [])
+  const logout = useCallback(() => {
+    void api<null>('/auth/logout', { method: 'POST' }).catch(() => {})
+    clearSession()
+  }, [clearSession])
 
   useEffect(() => {
-    if (!token) {
-      setUser(null)
-      setAuthToken(null)
-      return
-    }
-    setAuthToken(token)
+    setUnauthorizedHandler(clearSession)
+  }, [clearSession])
+
+  useEffect(() => {
     let cancelled = false
-    api<User>('/auth/me')
-      .then((me) => {
+    api<{ token: string }>('/auth/refresh', { method: 'POST' })
+      .then(async (res) => {
+        setAuthToken(res.token)
+        const me = await api<User>('/auth/me')
         if (!cancelled) setUser(me)
       })
-      .catch((err) => {
-        if (!cancelled && err instanceof HttpError && err.status === 401) logout()
+      .catch(() => {
+        /* anonymous default; do not clearSession — races with in-flight login */
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true)
       })
     return () => {
       cancelled = true
     }
-  }, [token, logout])
+  }, [])
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api<{ token: string }>('/auth/login', {
       method: 'POST',
       json: { email, password },
     })
-    setToken(res.token)
     setAuthToken(res.token)
-    writeStoredToken(res.token)
     const me = await api<User>('/auth/me')
     setUser(me)
     return me
   }, [])
 
   const value = useMemo(
-    () => ({ user, login, logout }),
-    [user, login, logout],
+    () => ({ user, ready, login, logout }),
+    [user, ready, login, logout],
   )
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>

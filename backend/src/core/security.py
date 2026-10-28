@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import secrets
 import unicodedata
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -12,6 +14,15 @@ from src.core.config import get_settings
 _ph = PasswordHasher()
 JWT_ALG = "HS256"
 JWT_TTL = timedelta(minutes=30)
+REFRESH_TTL = timedelta(days=7)
+
+
+def new_refresh_secret() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_refresh(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 def normalize_email(raw: str) -> str:

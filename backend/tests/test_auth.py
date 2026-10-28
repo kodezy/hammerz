@@ -168,3 +168,66 @@ def test_register_rate_limit_sixth_request_429(client):
     r6 = _register(client, email=_unique_email("rl-blocked"))
     assert r6.status_code == 429
     assert r6.json()["code"] == ErrorCode.RATE_LIMITED
+
+
+@pytest.mark.usefixtures("engine")
+def test_login_sets_refresh_cookie(client):
+    email = _unique_email("cookie")
+    _register(client, email=email)
+    r = client.post("/api/v1/auth/login", json={"email": email, "password": "password1"})
+    assert r.status_code == 200
+    assert r.json()["token"]
+    cookie = r.headers.get("set-cookie", "")
+    assert "hammerz_refresh=" in cookie
+    assert "HttpOnly" in cookie
+    assert "Path=/api/v1/auth" in cookie
+
+
+@pytest.mark.usefixtures("engine")
+def test_refresh_twice_same_cookie(client):
+    email = _unique_email("refresh2")
+    _register(client, email=email)
+    client.post("/api/v1/auth/login", json={"email": email, "password": "password1"})
+    r1 = client.post("/api/v1/auth/refresh")
+    r2 = client.post("/api/v1/auth/refresh")
+    assert r1.status_code == 200
+    assert r2.status_code == 200
+    for r in (r1, r2):
+        token = r.json()["token"]
+        me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me.status_code == 200
+
+
+@pytest.mark.usefixtures("engine")
+def test_refresh_without_cookie_401(client):
+    r = client.post("/api/v1/auth/refresh")
+    assert r.status_code == 401
+    assert r.json()["code"] == ErrorCode.UNAUTHORIZED
+
+
+@pytest.mark.usefixtures("engine")
+def test_logout_revokes_refresh(client):
+    email = _unique_email("logout")
+    _register(client, email=email)
+    client.post("/api/v1/auth/login", json={"email": email, "password": "password1"})
+    out = client.post("/api/v1/auth/logout")
+    assert out.status_code == 204
+    assert "hammerz_refresh=" in out.headers.get("set-cookie", "")
+    r = client.post("/api/v1/auth/refresh")
+    assert r.status_code == 401
+
+
+@pytest.mark.usefixtures("engine")
+def test_refresh_expired_clears_cookie(client, db_session):
+    from src.db.tables import RefreshToken
+
+    email = _unique_email("expired")
+    _register(client, email=email)
+    client.post("/api/v1/auth/login", json={"email": email, "password": "password1"})
+    row = db_session.scalar(select(RefreshToken))
+    assert row is not None
+    row.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    db_session.commit()
+    r = client.post("/api/v1/auth/refresh")
+    assert r.status_code == 401
+    assert "hammerz_refresh=" in r.headers.get("set-cookie", "")

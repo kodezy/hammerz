@@ -54,7 +54,7 @@ function auctionsActive(pathname: string): boolean {
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useSession()
+  const { user, logout, ready } = useSession()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const auctionsIsCurrent = auctionsActive(pathname)
@@ -93,25 +93,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex shrink-0 items-center gap-2 md:gap-3">
             <ThemeToggle />
-            {user ? (
-              <Button
-                variant="secondary"
-                className="h-10 px-4"
-                onClick={() => {
-                  logout()
-                  navigate('/')
-                }}
-              >
-                Sign out
-              </Button>
-            ) : (
-              <Link
-                to="/login"
-                className="inline-flex h-10 min-w-[112px] items-center justify-center rounded-lg bg-brand px-5 text-sm font-semibold text-bg transition-opacity hover:opacity-90"
-              >
-                Sign in
-              </Link>
-            )}
+            {ready &&
+              (user ? (
+                <Button
+                  variant="secondary"
+                  className="h-10 px-4"
+                  onClick={() => {
+                    logout()
+                    navigate('/')
+                  }}
+                >
+                  Sign out
+                </Button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="inline-flex h-10 min-w-[112px] items-center justify-center rounded-lg bg-brand px-5 text-sm font-semibold text-bg transition-opacity hover:opacity-90"
+                >
+                  Sign in
+                </Link>
+              ))}
           </div>
         </div>
       </header>

@@ -52,7 +52,7 @@ Do not seed on API startup. Seed is `docker compose exec backend seed-demo` only
 - One-word Python modules (`bids.py`); pytest `test_<word>.py`; React pages `Lot.tsx`. Empty `__init__.py` is fine. Do not add Repository/UoW/`CurrencyProvider`/theme-cloned pages.
 - Schema changes go through Alembic. Driver is `postgresql+psycopg://` only.
 - Colors: Tailwind v4 tokens in `frontend/src/styles.css`. Do not scatter raw hex in components.
-- JWT: keep off `localStorage`. Idempotency retry keys may use `localStorage` via `lib/pending.ts`.
+- JWT: keep off `localStorage` and `sessionStorage`; refresh uses HttpOnly cookie only. Idempotency retry keys may use `localStorage` via `lib/pending.ts`.
 - Catalog HTTP happens before the short create transaction. Met is the catalog source; snapshot fields stay in `catalog_items`.
 - Sellers are provisioned by seed (`auth.provision`), not public register.
 

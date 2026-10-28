@@ -36,7 +36,7 @@ REST is authoritative. WebSocket frames broadcast confirmed transitions only aft
 
 **journal** — append-only JSONL + manifest on `AUDIT_DIR` (`audit_data` volume). PREPARE (fsync) before DB commit; COMMIT or ABORT after known DB outcome. Unknown outcome → `202 OPERATION_PENDING`; do not infer ABORT from missing rows.
 
-**frontend** — English React SPA. Talks to `/api/v1` and `/ws`. JWT in module memory plus `sessionStorage["hammerz:token"]` (not `localStorage`). Theme in `localStorage["hammerz:theme"]`.
+**frontend** — English React SPA. Talks to `/api/v1` and `/ws`. Access JWT in module memory only; persistent sign-in via HttpOnly cookie `hammerz_refresh` on `/api/v1/auth` (not `localStorage` / `sessionStorage`). Theme in `localStorage["hammerz:theme"]`.
 
 **Caddy** — serves the built SPA; proxies API/WS/health. Compose does not publish backend or Postgres ports.
 
@@ -64,4 +64,4 @@ SPA: `cd frontend && npm run build`
 
 ## Freshness
 
-Last verified: 2026-10-27
+Last verified: 2026-10-28

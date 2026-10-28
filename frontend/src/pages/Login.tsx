@@ -10,7 +10,7 @@ import { TextField } from '../components/TextField'
 import { HttpError } from '../lib/http'
 
 export function Login() {
-  const { login, user } = useSession()
+  const { login, user, ready } = useSession()
   const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,8 +20,8 @@ export function Login() {
   const created = params.get('created') === '1'
 
   useEffect(() => {
-    if (user) navigate(defaultHome(user.role), { replace: true })
-  }, [user, navigate])
+    if (ready && user) navigate(defaultHome(user.role), { replace: true })
+  }, [ready, user, navigate])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()

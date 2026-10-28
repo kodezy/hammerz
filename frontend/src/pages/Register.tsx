@@ -11,7 +11,7 @@ import { register } from '../features/auth'
 import { HttpError } from '../lib/http'
 
 export function Register() {
-  const { user } = useSession()
+  const { user, ready } = useSession()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -20,8 +20,8 @@ export function Register() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user) navigate('/', { replace: true })
-  }, [user, navigate])
+    if (ready && user) navigate('/', { replace: true })
+  }, [ready, user, navigate])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()

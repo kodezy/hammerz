@@ -2,6 +2,14 @@ import type { ApiError } from './types'
 
 let token: string | null = null
 let onUnauthorized: (() => void) | null = null
+let refreshInFlight: Promise<string | null> | null = null
+
+const NO_REFRESH_PATHS = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/logout',
+])
 
 export function setAuthToken(t: string | null): void {
   token = t
@@ -24,22 +32,7 @@ export class HttpError extends Error {
   }
 }
 
-export async function api<T>(
-  path: string,
-  init: RequestInit & { json?: unknown } = {},
-): Promise<T> {
-  const headers = new Headers(init.headers)
-  if (init.json !== undefined) {
-    headers.set('Content-Type', 'application/json')
-  }
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
-  const res = await fetch(`/api/v1${path}`, {
-    ...init,
-    headers,
-    body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
-  })
+async function parseResponse(res: Response): Promise<{ data: unknown }> {
   const text = await res.text()
   let data: unknown = null
   if (text) {
@@ -49,10 +42,70 @@ export async function api<T>(
       data = { message: text }
     }
   }
-  if (res.status === 401 && token) {
-    token = null
-    onUnauthorized?.()
+  return { data }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch('/api/v1/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const { data } = await parseResponse(res)
+      if (!res.ok) return null
+      const body = data as { token?: string }
+      if (!body.token) return null
+      token = body.token
+      return body.token
+    } catch {
+      return null
+    } finally {
+      refreshInFlight = null
+    }
+  })()
+  return refreshInFlight
+}
+
+export async function api<T>(
+  path: string,
+  init: RequestInit & { json?: unknown } = {},
+): Promise<T> {
+  async function once(): Promise<{ res: Response; data: unknown }> {
+    const headers = new Headers(init.headers)
+    if (init.json !== undefined) {
+      headers.set('Content-Type', 'application/json')
+    }
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+    const res = await fetch(`/api/v1${path}`, {
+      ...init,
+      headers,
+      credentials: 'include',
+      body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
+    })
+    const { data } = await parseResponse(res)
+    return { res, data }
   }
+
+  let { res, data } = await once()
+
+  if (
+    res.status === 401 &&
+    !NO_REFRESH_PATHS.has(path) &&
+    (data as ApiError | null)?.code === 'UNAUTHORIZED'
+  ) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      ;({ res, data } = await once())
+    } else {
+      token = null
+      onUnauthorized?.()
+    }
+  }
+
   if (!res.ok) {
     const body = (data ?? { code: 'UNKNOWN', message: res.statusText }) as ApiError
     throw new HttpError(res.status, body)
