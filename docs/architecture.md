@@ -69,7 +69,3 @@ Fast check: `cd backend && uv run ruff format . && uv run ruff check .`
 Tests: `cd backend && uv run pytest -q` (real PostgreSQL 16; `DATABASE_URL` as in CI).
 
 SPA: `cd frontend && npm run test && npm run build`
-
-## Freshness
-
-Last verified: 2026-10-28

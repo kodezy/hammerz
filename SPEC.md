@@ -1,12 +1,8 @@
-# Hammerz — MVP specification
+# Hammerz — specification
 
-**Version:** 0.5 (2026-10-28, aligned with implementation)
+[README.md](README.md) (run and demo) · [docs/architecture.md](docs/architecture.md) (journal, ops) · [AGENTS.md](AGENTS.md)
 
-**Run the app:** [README.md](README.md) · **Stack, journal, ops:** [docs/architecture.md](docs/architecture.md) · **Agents:** [AGENTS.md](AGENTS.md)
-
-Simulated live art auctions: Met catalog snapshots, USD wallets, WebSocket room updates, public audit and receipts. No real payments.
-
-
+Product and HTTP contract for the simulated auction MVP. No real payments.
 
 ## Scope
 
@@ -34,7 +30,7 @@ Public `/register` creates **bidder** accounts with $0 wallets. Sellers are prov
 
 ## UI routes
 
-See [README.md](README.md). Product copy is English. No demo mode, role picker, or in-app evaluation credentials.
+See [README.md](README.md). Product copy is English. No demo-mode chrome or in-app credentials.
 
 Personal bid states: `NOT_PARTICIPATING`, `LEADING`, `OUTBID`, `WON`, `LOST`, `CANCELLED`. Show specific rejection reasons (below minimum, insufficient funds, already leading, not started, ended, cancelled, audit unavailable). Countdown and live/scheduled labels use server time from REST/WS snapshots.
 
@@ -74,7 +70,7 @@ Accept only when:
 
 If `0 < old_ends_at - accepted_at <= 120` seconds: `new_ends_at = old_ends_at + 2 minutes` (not `accepted_at + 2`). Reject when `accepted_at == ends_at`.
 
-## Cancellation [EXTRA]
+## Cancellation
 
 Owner may cancel `OPEN` lot before `ends_at` (scheduled or live). No bids: reason optional. With bids: public reason required, 10–500 characters after trim. Releases **current leader’s** reserve only; preserves bid history and audit. No settlement or winner receipt. Idempotent retry returns original outcome.
 
@@ -82,7 +78,7 @@ Owner may cancel `OPEN` lot before `ends_at` (scheduled or live). No bids: reaso
 
 Background job closes expired `OPEN` lots. With bids: debit winner, credit seller, settlement + public receipt, `CLOSED`. Without bids: close with no winner. One settlement and one receipt per lot. If audit evidence is missing or inconsistent, do not close; keep reserve until safe recovery.
 
-## Lock order [DECISION]
+## Lock order
 
 Audited mutations: journal lock → auction `FOR UPDATE` → wallets by ascending UUID. Deposits: wallet only. Catalog HTTP completes before the short create transaction.
 
@@ -107,6 +103,7 @@ Tamper demo, backup pairing, and crash behavior: [docs/architecture.md](docs/arc
 | POST | `/auth/register` | Public | Register bidder + zero wallet |
 | POST | `/auth/login` | Public | Login |
 | POST | `/auth/refresh` | Cookie | New access token |
+| POST | `/auth/logout` | Cookie | Revoke refresh |
 | GET | `/auth/me` | Auth | Profile and role |
 | GET | `/catalog/search` | Seller | Met search |
 | POST | `/auctions` | Seller | Create lot |
@@ -129,7 +126,7 @@ Errors: `{ code, message, details?, request_id }`. Notable HTTP: `202 OPERATION_
 
 ## WebSocket
 
-Public `/ws/auctions/{auction_id}` for fan-out after DB commit and journal COMMIT. Bids only via REST. Frame types include `auction.snapshot`, `bid.accepted`, `auction.cancelled`, `auction.closed`. Client reconciles by `auction.version`; gap or reconnect triggers REST refetch.
+Public `/ws/auctions/{auction_id}` after DB commit and journal COMMIT. Bids only via REST. Frames: `bid.accepted`, `auction.cancelled`, `auction.closed` (each carries `snapshot` + `version`). Client reconciles by `version`; gap or reconnect triggers REST refetch.
 
 ## Met catalog
 
@@ -137,15 +134,4 @@ Search and object fetch use the [Met Collection API](https://metmuseum.github.io
 
 ## Demo seed
 
-```bash
-docker compose exec backend seed-demo
-docker compose exec backend seed-demo --ensure-live
-```
-
-Idempotent: does not reset passwords, balances, or history. Credentials and expected balances: [README.md](README.md).
-
-## References
-
-- Met Collection API: https://metmuseum.github.io/
-- PostgreSQL 16 transaction isolation: https://www.postgresql.org/docs/16/transaction-iso.html
-- Caddy automatic HTTPS: https://caddyserver.com/docs/automatic-https
+`seed-demo` (optional `--ensure-live`). Idempotent. Credentials: [README.md](README.md).
