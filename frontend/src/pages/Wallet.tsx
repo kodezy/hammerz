@@ -40,12 +40,9 @@ export function Wallet() {
       .catch((err) => {
         if (err instanceof HttpError && (err.status === 202 || err.code === 'OPERATION_PENDING')) {
           setError('Confirmation pending')
-          showToast('Confirmation pending', 'warning')
           return
         }
-        const message = err instanceof HttpError ? err.message : 'Deposit failed'
-        setError(message)
-        showToast(message, 'danger')
+        setError(err instanceof HttpError ? err.message : 'Deposit failed')
       })
       .finally(() => setPending(false))
   }, [user, qc, showToast])
@@ -61,7 +58,6 @@ export function Wallet() {
     const cents = parseDollarsToCents(amount)
     if (cents === null || cents <= 0) {
       setError('Enter a valid USD amount')
-      showToast('Enter a valid USD amount', 'danger')
       return
     }
     const key = crypto.randomUUID()
@@ -86,11 +82,8 @@ export function Wallet() {
         (err.status === 202 || err.code === 'OPERATION_PENDING')
       ) {
         setError('Confirmation pending')
-        showToast('Confirmation pending', 'warning')
       } else {
-        const message = err instanceof HttpError ? err.message : 'Deposit failed'
-        setError(message)
-        showToast(message, 'danger')
+        setError(err instanceof HttpError ? err.message : 'Deposit failed')
       }
     } finally {
       setPending(false)
@@ -129,26 +122,27 @@ export function Wallet() {
         </div>
       )}
       {q.data?.commitments && q.data.commitments.length > 0 && (
-        <section>
-          <h2 className="mb-4 font-semibold text-text">Current commitments</h2>
-          <ul className="flex flex-col gap-4">
+        <Card>
+          <h2 className="mb-1 font-semibold text-text">Current commitments</h2>
+          <p className="mb-4 text-sm text-muted">
+            Released when you are outbid or a lot is cancelled.
+          </p>
+          <ul className="divide-y divide-border">
             {q.data.commitments.map((c) => (
-              <li key={c.auction_id}>
-                <Card className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <Link to={`/lots/${c.auction_id}`} className="font-display text-lg text-brand hover:opacity-90">
-                    {lotListingTitle(c.display_no, c.title)}
-                  </Link>
-                  <span className="text-muted">
-                    <Money value={c.reserved} /> reserved
-                  </span>
-                </Card>
+              <li
+                key={c.auction_id}
+                className="grid grid-cols-1 gap-1 py-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center sm:gap-4"
+              >
+                <Link to={`/lots/${c.auction_id}`} className="text-brand hover:underline">
+                  {lotListingTitle(c.display_no, c.title)}
+                </Link>
+                <span className="text-muted sm:text-right">
+                  <Money value={c.reserved} /> reserved
+                </span>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-muted">
-            Released when you are outbid or a lot is cancelled.
-          </p>
-        </section>
+        </Card>
       )}
       <Card>
         <h2 className="mb-2 font-semibold text-text">Add funds</h2>

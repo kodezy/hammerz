@@ -21,28 +21,16 @@ import {
 } from '../features/lots'
 import { getWallet } from '../features/wallet'
 import {
-  acceptedBidsLine,
   leaderLine,
   lotArtworkLine,
   minimumBidLine,
 } from '../lib/lotCopy'
 import { sellerCanCancel } from '../lib/display'
-import { HttpError, httpErrorMessage, httpErrorToastVariant } from '../lib/http'
+import { HttpError, httpErrorMessage } from '../lib/http'
 import { parseDollarsToCents } from '../lib/money'
 import { clearPending, listPending, savePending } from '../lib/pending'
 import { formatBidTimestamp, formatEndsLine } from '../lib/time'
 import { connectLotSocket } from '../lib/ws'
-
-function AntiSnipeNotice() {
-  return (
-    <div className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
-      <p className="font-medium">Extra time for a fair finish</p>
-      <p className="mt-1 text-xs opacity-90">
-        A bid accepted in the final 2 minutes adds 2 minutes to the current deadline.
-      </p>
-    </div>
-  )
-}
 
 export function Lot() {
   const { id = '' } = useParams()
@@ -111,18 +99,14 @@ export function Lot() {
           placeBid(id, body.amount_cents, rec.key)
             .then(() => {
               clearPending(user.id, rec.key)
-              showToast('Bid placed')
               refreshLot()
             })
             .catch((err) => {
               if (err instanceof HttpError && err.status === 202) {
                 setError('Confirmation pending')
-                showToast('Confirmation pending', 'warning')
                 return
               }
-              const message = httpErrorMessage(err, 'Bid failed')
-              setError(message)
-              showToast(message, httpErrorToastVariant(err))
+              setError(httpErrorMessage(err, 'Bid failed'))
             })
             .finally(() => setPending(false))
         }
@@ -141,23 +125,19 @@ export function Lot() {
           .then(() => {
             clearPending(user.id, rec.key)
             setShowCancel(false)
-            showToast('Lot cancelled')
             refreshLot()
           })
           .catch((err) => {
             if (err instanceof HttpError && err.status === 202) {
               setError('Confirmation pending')
-              showToast('Confirmation pending', 'warning')
               return
             }
-            const message = httpErrorMessage(err, 'Cancel failed')
-            setError(message)
-            showToast(message, httpErrorToastVariant(err))
+            setError(httpErrorMessage(err, 'Cancel failed'))
           })
           .finally(() => setCancelPending(false))
       }
     }
-  }, [id, user, refreshLot, showToast])
+  }, [id, user, refreshLot])
 
   const a = auctionQ.data
   const position = posQ.data?.position
@@ -172,7 +152,6 @@ export function Lot() {
     const cents = parseDollarsToCents(amount)
     if (!cents) {
       setError('Invalid bid amount')
-      showToast('Invalid bid amount', 'danger')
       return
     }
     const key = crypto.randomUUID()
@@ -189,16 +168,12 @@ export function Lot() {
       await placeBid(id, cents, key)
       clearPending(user.id, key)
       setAmount('')
-      showToast('Bid placed')
       refreshLot()
     } catch (err) {
       if (err instanceof HttpError && err.status === 202) {
         setError('Confirmation pending')
-        showToast('Confirmation pending', 'warning')
       } else {
-        const message = httpErrorMessage(err, 'Bid failed')
-        setError(message)
-        showToast(message, httpErrorToastVariant(err))
+        setError(httpErrorMessage(err, 'Bid failed'))
       }
     } finally {
       setPending(false)
@@ -223,9 +198,7 @@ export function Lot() {
     if (!user || user.role !== 'SELLER') return
     const bidCount = Number(auctionQ.data?.bid_count ?? 0)
     if (bidCount > 0 && cancelReason.trim().length < 10) {
-      const message = 'Cancellation reason required (at least 10 characters)'
-      setError(message)
-      showToast(message, 'danger')
+      setError('Cancellation reason required (at least 10 characters)')
       return
     }
     const key = crypto.randomUUID()
@@ -243,16 +216,12 @@ export function Lot() {
       await cancelLot(id, reason, key)
       clearPending(user.id, key)
       setShowCancel(false)
-      showToast('Lot cancelled')
       refreshLot()
     } catch (err) {
       if (err instanceof HttpError && err.status === 202) {
         setError('Confirmation pending')
-        showToast('Confirmation pending', 'warning')
       } else {
-        const message = httpErrorMessage(err, 'Cancel failed')
-        setError(message)
-        showToast(message, httpErrorToastVariant(err))
+        setError(httpErrorMessage(err, 'Cancel failed'))
       }
     } finally {
       setCancelPending(false)
@@ -308,7 +277,6 @@ export function Lot() {
       {position === 'LOST' && (
         <Banner variant="info">This lot ended without your winning bid</Banner>
       )}
-      {position === 'CANCELLED' && <Banner variant="warning">This lot was cancelled</Banner>}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <div className="flex min-h-72 items-center justify-center rounded-xl bg-brand-soft p-4">
@@ -319,7 +287,7 @@ export function Lot() {
             )}
           </div>
           <section>
-            <h2 className="mb-2 font-medium">About the artwork</h2>
+            <h2 className="mb-2 font-semibold text-text">About the artwork</h2>
             <p className="text-sm whitespace-pre-line text-muted">
               {item.description?.trim() ||
                 item.attribution?.trim() ||
@@ -344,7 +312,9 @@ export function Lot() {
           <p className="font-display text-4xl text-text">
             <Money value={currentMoney} />
           </p>
-          <p className="text-sm text-muted">{leaderLine(a.leader_alias, bidCount)}</p>
+          {!hasBids && (
+            <p className="text-sm text-muted">{leaderLine(a.leader_alias, bidCount)}</p>
+          )}
           <hr className="border-border" />
           <Clock
             endsAt={a.ends_at}
@@ -353,9 +323,13 @@ export function Lot() {
             onElapsed={() => refreshLot()}
           />
           <p className="text-sm text-muted">{formatEndsLine(a.ends_at)}</p>
-          {live && <AntiSnipeNotice />}
-          {position === 'NOT_PARTICIPATING' && user?.role === 'BIDDER' && live && (
-            <Banner variant="info">Place your first bid</Banner>
+          {live && (
+            <Banner variant="warning">
+              <span className="font-medium">Extra time for a fair finish</span>
+              <p className="mt-1 text-xs opacity-90">
+                A bid accepted in the final 2 minutes adds 2 minutes to the current deadline.
+              </p>
+            </Banner>
           )}
           {position === 'OUTBID' && (
             <Banner variant="warning">
@@ -366,18 +340,13 @@ export function Lot() {
             </Banner>
           )}
           {position === 'LEADING' && (
-            <>
-              <Banner variant="success">
-                <span className="font-medium">You are leading</span>
-                <p className="mt-1 text-xs opacity-90">
-                  <Money value={{ cents: posQ.data?.reserved_cents ?? currentMoney.cents, currency: 'USD' }} />{' '}
-                  reserved for this lot. You cannot cover your own leading bid.
-                </p>
-              </Banner>
-              <Button type="button" variant="secondary" disabled className="w-full">
-                You are already leading
-              </Button>
-            </>
+            <Banner variant="success">
+              <span className="font-medium">You are leading</span>
+              <p className="mt-1 text-xs opacity-90">
+                <Money value={{ cents: posQ.data?.reserved_cents ?? currentMoney.cents, currency: 'USD' }} />{' '}
+                reserved for this lot. You cannot cover your own leading bid.
+              </p>
+            </Banner>
           )}
           {!user && live && (
             <ButtonLink
@@ -469,20 +438,27 @@ export function Lot() {
           </div>
         </Card>
       </div>
-      {!cancelled && (
-        <section>
-          <h2 className="mb-2 font-medium">Latest bids</h2>
+      {!cancelled && (bidsQ.isLoading || bidsQ.isError || bidItems.length > 0) && (
+        <Card>
+          <h2 className="mb-4 font-semibold text-text">Latest bids</h2>
           {bidsQ.isLoading && <p className="text-sm text-muted">Loading…</p>}
           {bidsQ.isError && <p className="mb-2 text-sm text-danger">Could not load bids.</p>}
-          {!bidsQ.isLoading && !bidsQ.isError && bidItems.length === 0 && (
-            <p className="text-sm text-muted">{acceptedBidsLine(null, 0)}</p>
-          )}
           {bidItems.length > 0 && (
-            <ul className="space-y-1 text-sm">
+            <ul className="divide-y divide-border">
               {bidItems.map((b) => (
-                <li key={b.sequence}>
-                  #{b.sequence} · {formatBidTimestamp(b.accepted_at)} — {b.bidder_alias} —{' '}
-                  <Money value={{ cents: b.amount_cents, currency: 'USD' }} />
+                <li
+                  key={b.sequence}
+                  className="grid grid-cols-1 gap-1 py-3 text-sm sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-4"
+                >
+                  <span className="font-medium text-muted">#{b.sequence}</span>
+                  <span>
+                    {b.bidder_alias}
+                    {' · '}
+                    <Money value={{ cents: b.amount_cents, currency: 'USD' }} />
+                  </span>
+                  <span className="text-muted sm:text-right">
+                    {formatBidTimestamp(b.accepted_at)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -498,7 +474,7 @@ export function Lot() {
               {loadingOlder ? 'Loading…' : 'Load earlier bids'}
             </Button>
           )}
-        </section>
+        </Card>
       )}
     </div>
   )

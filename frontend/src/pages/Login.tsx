@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { defaultHome, isReturnToAllowed, useSession } from '../app/session'
-import { useToast } from '../app/toast'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -11,7 +10,6 @@ import { HttpError } from '../lib/http'
 
 export function Login() {
   const { login, user, ready } = useSession()
-  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -33,9 +31,7 @@ export function Login() {
         returnTo && isReturnToAllowed(me.role, returnTo) ? returnTo : defaultHome(me.role)
       navigate(dest, { replace: true })
     } catch (err) {
-      const message = err instanceof HttpError ? err.message : 'Sign in failed'
-      setError(message)
-      showToast(message, 'danger')
+      setError(err instanceof HttpError ? err.message : 'Sign in failed')
     }
   }
 

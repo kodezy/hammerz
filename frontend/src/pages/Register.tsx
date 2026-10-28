@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '../app/session'
-import { useToast } from '../app/toast'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -12,7 +11,6 @@ import { HttpError } from '../lib/http'
 
 export function Register() {
   const { user, ready } = useSession()
-  const { showToast } = useToast()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -28,16 +26,13 @@ export function Register() {
     setError(null)
     if (password !== confirm) {
       setError('Passwords do not match')
-      showToast('Passwords do not match', 'danger')
       return
     }
     try {
       await register(email, password)
       navigate('/login?created=1', { replace: true })
     } catch (err) {
-      const message = err instanceof HttpError ? err.message : 'Registration failed'
-      setError(message)
-      showToast(message, 'danger')
+      setError(err instanceof HttpError ? err.message : 'Registration failed')
     }
   }
 

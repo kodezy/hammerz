@@ -1,7 +1,7 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '../app/session'
 import { useTheme } from '../app/theme'
-import { Button } from './Button'
+import { Button, ButtonLink } from './Button'
 
 function ThemeToggle() {
   const { toggle, label, pressed } = useTheme()
@@ -106,12 +106,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   Sign out
                 </Button>
               ) : (
-                <Link
-                  to="/login"
-                  className="inline-flex h-10 min-w-[112px] items-center justify-center rounded-lg bg-brand px-5 text-sm font-semibold text-bg transition-opacity hover:opacity-90"
-                >
+                <ButtonLink to="/login" variant="primary" className="h-10 min-w-[112px] px-5">
                   Sign in
-                </Link>
+                </ButtonLink>
               ))}
           </div>
         </div>

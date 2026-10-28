@@ -24,47 +24,13 @@ type WinRow = {
   bid_count?: number
   user_last_bid?: MoneyType
   receipt_id?: string
-  cancel_reason?: string
 }
 
 function participationMeta(tab: Tab, row: WinRow) {
-  const position = row.position
-  if (tab === 'WON' && row.current_bid) {
+  if ((tab === 'ACTIVE' && row.position === 'OUTBID' && row.user_last_bid) || (tab === 'PAST' && row.user_last_bid)) {
     return (
       <p className="text-[13px] text-muted">
-        Winning bid: <Money value={row.current_bid} />
-      </p>
-    )
-  }
-  if (tab === 'ACTIVE' && position === 'LEADING' && row.current_bid) {
-    return (
-      <p className="text-[13px] text-muted">
-        Your bid: <Money value={row.current_bid} />
-      </p>
-    )
-  }
-  if (tab === 'ACTIVE' && position === 'OUTBID') {
-    if (row.user_last_bid && row.current_bid) {
-      return (
-        <p className="text-[13px] text-muted">
-          Your last bid: <Money value={row.user_last_bid} /> · Current bid:{' '}
-          <Money value={row.current_bid} />
-        </p>
-      )
-    }
-    return (
-      <p className="text-[13px] text-muted">
-        Your last bid and current bid are shown on the lot page.
-      </p>
-    )
-  }
-  if (tab === 'PAST' && row.user_last_bid) {
-    return (
-      <p className="text-[13px] text-muted">
-        Your last bid: <Money value={row.user_last_bid} /> ·
-        {position === 'CANCELLED' || row.display_status === 'CANCELLED'
-          ? ' No funds reserved'
-          : ' Past participation'}
+        Your last bid: <Money value={row.user_last_bid} />
       </p>
     )
   }
@@ -104,9 +70,6 @@ export function Wins() {
       <TabNav tabs={tabs} active={tab} onChange={setTab} />
       {q.isLoading && <p className="text-muted">Loading…</p>}
       {q.isError && <p className="text-danger">Could not load bids and wins.</p>}
-      {!q.isLoading && !q.isError && q.data?.items.length === 0 && (
-        <p className="text-muted">No items in this tab yet.</p>
-      )}
       <ul className="flex flex-col gap-4">
         {q.data?.items.map((row) => {
           const amount = row.current_bid ?? row.opening_bid
@@ -136,11 +99,6 @@ export function Wins() {
                   {receiptId ? (
                     <ButtonLink to={`/receipts/${receiptId}`} className="w-full">
                       View receipt
-                    </ButtonLink>
-                  ) : null}
-                  {tab === 'PAST' && row.cancel_reason ? (
-                    <ButtonLink to={`/lots/${row.id}`} className="w-full">
-                      View reason
                     </ButtonLink>
                   ) : null}
                 </>

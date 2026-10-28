@@ -54,10 +54,8 @@ export function Home() {
         <TabNav tabs={tabLabels} active={tab} onChange={setTab} />
         {q.isLoading && <p className="text-muted">Loading…</p>}
         {q.isError && <p className="text-danger">Could not load auctions.</p>}
-        {!q.isLoading && !q.isError && visibleItems.length === 0 && (
-          <p className="text-muted">
-            {needle ? 'No lots match your search on this tab.' : 'No lots in this tab yet.'}
-          </p>
+        {!q.isLoading && !q.isError && visibleItems.length === 0 && needle && (
+          <p className="text-muted">No lots match your search on this tab.</p>
         )}
         <ul className="flex flex-col gap-4">
           {visibleItems.map((a) => {

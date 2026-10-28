@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useSession } from '../app/session'
 import { useToast } from '../app/toast'
 import { AuctionListRow } from '../components/AuctionListRow'
@@ -12,7 +12,7 @@ import { TabNav } from '../components/TabNav'
 import { TextField } from '../components/TextField'
 import { searchCatalog, type CatalogItem } from '../features/catalog'
 import { createLot, sellerAuctions } from '../features/lots'
-import { httpErrorMessage, httpErrorToastVariant } from '../lib/http'
+import { httpErrorMessage } from '../lib/http'
 import { parseDollarsToCents } from '../lib/money'
 import type { DisplayStatus, Money as MoneyType } from '../lib/types'
 
@@ -42,7 +42,6 @@ export function Seller() {
   const { user } = useSession()
   const { showToast } = useToast()
   const qc = useQueryClient()
-  const createRef = useRef<HTMLElement>(null)
   const [lotTab, setLotTab] = useState<SellerTab>('LIVE')
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
@@ -96,11 +95,6 @@ export function Seller() {
     }
   })
 
-  function goToCreate() {
-    createRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    document.getElementById(CATALOG_INPUT_ID)?.focus()
-  }
-
   async function onCreate(e: FormEvent) {
     e.preventDefault()
     if (!selected) return
@@ -108,7 +102,6 @@ export function Seller() {
     const incCents = parseDollarsToCents(increment)
     if (!openCents || !incCents) {
       setError('Invalid amounts')
-      showToast('Invalid amounts', 'danger')
       return
     }
     const starts = new Date()
@@ -133,9 +126,7 @@ export function Seller() {
       await qc.invalidateQueries({ queryKey: ['seller-lots'] })
       qc.removeQueries({ queryKey: ['catalog'] })
     } catch (err) {
-      const message = httpErrorMessage(err, 'Create failed')
-      setError(message)
-      showToast(message, httpErrorToastVariant(err))
+      setError(httpErrorMessage(err, 'Create failed'))
     } finally {
       setPublishing(false)
     }
@@ -148,113 +139,10 @@ export function Seller() {
     <div className="space-y-8">
       <PageHeading
         title="Seller dashboard"
-        subtitle="Publish lots and follow results."
-        action={
-          <Button type="button" onClick={goToCreate}>
-            Create a lot
-          </Button>
-        }
+        subtitle="Manage lots, proceeds, and new listings."
       />
 
-      <section ref={createRef} id="create-lot" className="scroll-mt-20">
-        <Card>
-          <h2 className="font-semibold text-text">Create a lot</h2>
-          <p className="mt-1 mb-4 text-sm text-muted">
-            Search the Met collection, select a work, then set the opening bid. New lots start in
-            about 5 minutes and appear under Upcoming.
-          </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              const needle = q.trim()
-              if (!needle) return
-              setError(null)
-              setSelected(null)
-              setSearch(needle)
-            }}
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          >
-            <div className="min-w-0 flex-1">
-              <TextField
-                id={CATALOG_INPUT_ID}
-                label="Search Met collection"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Artist or title"
-                autoComplete="off"
-                required
-              />
-            </div>
-            <Button type="submit" className="shrink-0 sm:w-[244px]" disabled={catalog.isFetching}>
-              Search
-            </Button>
-          </form>
-          {!searched && (
-            <p className="mt-4 text-sm text-muted">No search yet. Enter an artist or title.</p>
-          )}
-          {searched && catalog.isFetching && catalogItems.length === 0 && (
-            <p className="mt-4 text-sm text-muted">Searching…</p>
-          )}
-          {searched && catalog.isError && (
-            <p className="mt-4 text-sm text-danger">Could not search the catalog.</p>
-          )}
-          {searched && catalog.isSuccess && !catalog.isFetching && catalogItems.length === 0 && (
-            <p className="mt-4 text-sm text-muted">
-              No matching works yet. Try another artist or title.
-            </p>
-          )}
-          {searched && catalogItems.length > 0 && (
-            <ul className="mt-4 space-y-2">
-              {catalogItems.map((item) => (
-                <li key={item.external_id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelected(item)
-                      setError(null)
-                    }}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
-                      selected?.external_id === item.external_id
-                        ? 'border-brand bg-brand-soft'
-                        : 'border-border'
-                    }`}
-                  >
-                    {item.title} — {item.artist ?? 'Not stated'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {searched && catalogItems.length > 0 && !selected && (
-            <p className="mt-3 text-sm text-muted">Select a work to set the opening bid.</p>
-          )}
-          {selected && (
-            <form onSubmit={onCreate} className="mt-6 space-y-4 border-t border-border pt-6">
-              <p className="text-sm text-text">
-                Selected · {selected.title}
-                {selected.artist ? ` — ${selected.artist}` : ''}
-              </p>
-              <TextField
-                label="Opening bid (USD)"
-                value={opening}
-                onChange={(e) => setOpening(e.target.value)}
-              />
-              <TextField
-                label="Minimum increment (USD)"
-                value={increment}
-                onChange={(e) => setIncrement(e.target.value)}
-              />
-              {error && <Banner variant="danger">{error}</Banner>}
-              <Button type="submit" disabled={publishing}>
-                {publishing ? 'Publishing…' : 'Publish lot'}
-              </Button>
-            </form>
-          )}
-        </Card>
-      </section>
-
       <section className="space-y-8">
-        <h2 className="font-semibold text-text">Your lots</h2>
         {lots.data && (
           <Banner variant="info">
             Total received ·{' '}
@@ -316,9 +204,97 @@ export function Seller() {
             )
           })}
         </ul>
-        {!lots.isLoading && !lots.isError && lots.data?.items.length === 0 && (
-          <p className="text-muted">No lots in this tab yet.</p>
-        )}
+      </section>
+
+      <section>
+        <Card>
+          <h2 className="font-semibold text-text">Create a lot</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
+            Search the Met collection, select a work, then set the opening bid. New lots start in
+            about 5 minutes and appear under Upcoming.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              const needle = q.trim()
+              if (!needle) return
+              setError(null)
+              setSelected(null)
+              setSearch(needle)
+            }}
+            className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          >
+            <div className="min-w-0 flex-1">
+              <TextField
+                id={CATALOG_INPUT_ID}
+                label="Search Met collection"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Artist or title"
+                autoComplete="off"
+                required
+              />
+            </div>
+            <Button type="submit" className="shrink-0 sm:w-[244px]" disabled={catalog.isFetching}>
+              Search
+            </Button>
+          </form>
+          {searched && catalog.isFetching && catalogItems.length === 0 && (
+            <p className="mt-4 text-sm text-muted">Searching…</p>
+          )}
+          {searched && catalog.isError && (
+            <p className="mt-4 text-sm text-danger">Could not search the catalog.</p>
+          )}
+          {searched && catalog.isSuccess && !catalog.isFetching && catalogItems.length === 0 && (
+            <p className="mt-4 text-sm text-muted">
+              No matching works. Try another artist or title.
+            </p>
+          )}
+          {searched && catalogItems.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {catalogItems.map((item) => (
+                <li key={item.external_id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelected(item)
+                      setError(null)
+                    }}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
+                      selected?.external_id === item.external_id
+                        ? 'border-brand bg-brand-soft'
+                        : 'border-border'
+                    }`}
+                  >
+                    {item.title} — {item.artist ?? 'Not stated'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {selected && (
+            <form onSubmit={onCreate} className="mt-6 space-y-4 border-t border-border pt-6">
+              <p className="text-sm text-text">
+                Selected · {selected.title}
+                {selected.artist ? ` — ${selected.artist}` : ''}
+              </p>
+              <TextField
+                label="Opening bid (USD)"
+                value={opening}
+                onChange={(e) => setOpening(e.target.value)}
+              />
+              <TextField
+                label="Minimum increment (USD)"
+                value={increment}
+                onChange={(e) => setIncrement(e.target.value)}
+              />
+              {error && <Banner variant="danger">{error}</Banner>}
+              <Button type="submit" disabled={publishing}>
+                {publishing ? 'Publishing…' : 'Publish lot'}
+              </Button>
+            </form>
+          )}
+        </Card>
       </section>
     </div>
   )
