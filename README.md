@@ -1,8 +1,15 @@
 # Hammerz
 
-Simulated live auctions: Met catalog lots, USD wallets, WebSocket bidding, settlement receipts, and a tamper-evident audit journal. Ledger-only money (no payment processor).
+Simulated live auctions: Met catalog lots, USD wallets, WebSocket bidding, settlement receipts, and a tamper-evident audit journal.
 
-Local: **http://localhost**. Production: set `SITE_ADDRESS` for HTTPS (Caddy).
+Ledger-only money — no payment processor.
+
+## URLs
+
+| Environment | Address |
+| --- | --- |
+| Local | **http://localhost** (HTTP) |
+| Production | Public hostname in `SITE_ADDRESS` (HTTPS via Caddy) |
 
 ## Quick start
 
@@ -15,11 +22,15 @@ docker compose exec backend seed-demo
 docker compose exec backend seed-demo --ensure-live
 ```
 
-Migrations run on backend startup. `seed-demo` is idempotent. `--ensure-live` adds a live lot when none exists.
+Migrations run on backend startup.
+
+`seed-demo` is idempotent (does not reset passwords, balances, or history).
+
+`--ensure-live` adds a live lot when none exists.
 
 ## Accounts
 
-Credentials are not shown in the app.
+Credentials are not shown in the app. Use after `seed-demo`.
 
 | Email | Password | Role |
 | --- | --- | --- |
@@ -27,9 +38,19 @@ Credentials are not shown in the app.
 | `bidder1@hammerz.test` | `Bidder1-Demo-2026!` | Bidder |
 | `bidder2@hammerz.test` | `Bidder2-Demo-2026!` | Bidder |
 
-After a fresh seed: seller $0; each bidder $10,000 total; bidder1 has $1,500 committed on the live lot. Seed includes settled, scheduled, and cancelled sample lots.
+**Fresh database (after first seed)**
 
-Seller: **Dashboard** / **New lot**. Bidder: **Auctions** → live lot → bid; **Wallet** and **Bids**.
+- Seller: $0 total.
+- Each bidder: $10,000 total.
+- Bidder1: $1,500 committed on the live lot.
+
+Sample lots: one live, one settled, one scheduled, one cancelled.
+
+**Walkthrough**
+
+- Seller → **Dashboard** → **New lot** (Met search).
+- Bidder → **Auctions** → open a **Live** lot → bid.
+- **Wallet** and **Bids** for balances and history.
 
 ## Routes
 
@@ -40,25 +61,42 @@ Seller: **Dashboard** / **New lot**. Bidder: **Auctions** → live lot → bid; 
 | `/seller` | Lots, Met search, proceeds |
 | `/wallet` | Balances, deposits |
 | `/bids` | Participations |
-| `/lots/:id` | Lot room |
+| `/lots/:id` | Lot room (REST + WebSocket) |
 | `/lots/:id/audit` | Integrity check |
 | `/receipts/:id` | Settlement receipt |
 
-Rules and API: [SPEC.md](SPEC.md). Code layout, journal, backup, tamper demo: [docs/architecture.md](docs/architecture.md).
+**More detail**
+
+- Product rules and API — [SPEC.md](SPEC.md)
+- Code map, journal, backup, tamper demo — [docs/architecture.md](docs/architecture.md)
 
 ## Deploy
 
-1. DNS → host; `.env` secrets and `CORS_ORIGINS` (exact HTTPS origin, no trailing slash).
-2. `SITE_ADDRESS` for the public hostname (see `.env.example`); unset = HTTP on port 80.
-3. `docker compose up --build -d`, both seed commands, confirm HTTPS/WSS and a **Live** lot from outside the LAN.
+1. Point DNS at the host.
+
+2. In `.env`: set secrets and `CORS_ORIGINS` to the exact HTTPS origin (no trailing slash).
+
+3. Set `SITE_ADDRESS` to the public hostname (see `.env.example`).  
+   Leave unset for local HTTP on port 80 only.
+
+4. Run `docker compose up --build -d`, then both seed commands.
+
+5. From outside your LAN: confirm HTTPS, login, bid, WebSocket updates, audit/receipt pages, and at least one **Live** lot.
 
 ## Limitations
 
-No password reset, seller self-registration, or real payments. Vitrine title filter is client-side on the current tab (up to 20 lots).
+- No password reset.
+- No seller self-registration.
+- No real payments.
+- Vitrine title filter is client-side on the current tab only (up to 20 lots).
 
 ## Development
 
-PostgreSQL 16 for backend tests. Compose does not publish `5432`; use local Postgres or [CI](.github/workflows/ci.yml).
+Backend tests need PostgreSQL 16.
+
+Compose does not publish `5432` by default — use local Postgres or match [CI](.github/workflows/ci.yml).
+
+**Backend**
 
 ```bash
 cd backend && uv sync --extra dev
@@ -68,6 +106,8 @@ export HMAC_SECRET=test-secret-32-chars-minimum!!
 export ALIAS_SECRET=test-secret-32-chars-minimum!!
 uv run ruff format . && uv run ruff check . && uv run pytest -q
 ```
+
+**Frontend**
 
 ```bash
 cd frontend && npm ci && npm run test && npm run build
