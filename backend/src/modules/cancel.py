@@ -94,7 +94,7 @@ async def cancel_auction(
             if auction.seller_id != seller_id:
                 raise AppError(403, ErrorCode.FORBIDDEN, "Not auction owner")
             if auction.status == "CANCELLED":
-                snap = auctions_module.get_auction(session, auction_id)
+                snap = audit_module.json_safe_payload(auctions_module.get_auction(session, auction_id))
                 session.add(
                     Key(
                         actor_id=seller_id,
@@ -192,7 +192,7 @@ async def cancel_auction(
             )
 
             session.refresh(auction)
-            snap = auctions_module.get_auction(session, auction_id)
+            snap = audit_module.json_safe_payload(auctions_module.get_auction(session, auction_id))
             session.add(
                 Key(
                     actor_id=seller_id,
