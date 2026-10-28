@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AuctionListRow } from '../components/AuctionListRow'
 import { MarketingHero } from '../components/MarketingHero'
 import { TabNav } from '../components/TabNav'
+import { TextField } from '../components/TextField'
 import { listAuctions } from '../features/lots'
 
 const tabs: { key: 'LIVE' | 'SCHEDULED' | 'ENDED'; label: string }[] = [
@@ -13,6 +14,7 @@ const tabs: { key: 'LIVE' | 'SCHEDULED' | 'ENDED'; label: string }[] = [
 
 export function Home() {
   const [tab, setTab] = useState<'LIVE' | 'SCHEDULED' | 'ENDED'>('LIVE')
+  const [filter, setFilter] = useState('')
   const q = useQuery({
     queryKey: ['auctions', tab],
     queryFn: () => listAuctions(tab),
@@ -32,16 +34,33 @@ export function Home() {
     }
   })
 
+  const needle = filter.trim().toLowerCase()
+  const visibleItems = useMemo(() => {
+    const items = q.data?.items ?? []
+    if (!needle) return items
+    return items.filter((a) => a.item.title.toLowerCase().includes(needle))
+  }, [q.data?.items, needle])
+
   return (
     <div className="space-y-10">
       <MarketingHero />
       <section className="space-y-8">
+        <TextField
+          label="Search lots on this tab"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter by title"
+        />
         <TabNav tabs={tabLabels} active={tab} onChange={setTab} />
         {q.isLoading && <p className="text-muted">Loading…</p>}
         {q.isError && <p className="text-danger">Could not load auctions.</p>}
-        {q.data?.items.length === 0 && <p className="text-muted">No lots in this tab.</p>}
+        {!q.isLoading && !q.isError && visibleItems.length === 0 && (
+          <p className="text-muted">
+            {needle ? 'No lots match your search on this tab.' : 'No lots in this tab.'}
+          </p>
+        )}
         <ul className="flex flex-col gap-4">
-          {q.data?.items.map((a) => {
+          {visibleItems.map((a) => {
             const amount = a.current_bid ?? a.opening_bid
             const count = a.bid_count ?? 0
             return (

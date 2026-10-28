@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import { Audit } from '../pages/Audit'
 import { Home } from '../pages/Home'
 import { Login } from '../pages/Login'
 import { Lot } from '../pages/Lot'
@@ -17,6 +18,7 @@ export function AppRoutes() {
       <Route path="/seller" element={<Seller />} />
       <Route path="/wallet" element={<Wallet />} />
       <Route path="/my-wins" element={<Wins />} />
+      <Route path="/lots/:id/audit" element={<Audit />} />
       <Route path="/lots/:id" element={<Lot />} />
       <Route path="/receipts/:id" element={<Receipt />} />
     </Routes>

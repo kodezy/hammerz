@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSession } from '../app/session'
 import { useToast } from '../app/toast'
 import { AuctionListRow } from '../components/AuctionListRow'
@@ -13,11 +13,11 @@ import { TextField } from '../components/TextField'
 import { Money } from '../components/Money'
 import { searchCatalog, type CatalogItem } from '../features/catalog'
 import { createLot, sellerAuctions } from '../features/lots'
-import { HttpError } from '../lib/http'
+import { httpErrorMessage, httpErrorToastVariant } from '../lib/http'
 import { parseDollarsToCents } from '../lib/money'
 import type { DisplayStatus, Money as MoneyType } from '../lib/types'
 
-type SellerTab = 'LIVE' | 'SCHEDULED' | 'ENDED'
+type SellerTab = 'LIVE' | 'SCHEDULED' | 'ENDED' | 'CANCELLED'
 
 type SellerRow = {
   id: string
@@ -35,6 +35,7 @@ const sellerTabs: { key: SellerTab; label: string }[] = [
   { key: 'LIVE', label: 'Live' },
   { key: 'SCHEDULED', label: 'Upcoming' },
   { key: 'ENDED', label: 'Ended' },
+  { key: 'CANCELLED', label: 'Cancelled' },
 ]
 
 export function Seller() {
@@ -61,6 +62,19 @@ export function Seller() {
   const [error, setError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
 
+  const { chartRows, chartMax } = useMemo(() => {
+    if (lotTab !== 'ENDED') return { chartRows: [], chartMax: 0 }
+    const endedRows = (lots.data?.items ?? []) as SellerRow[]
+    const rows = endedRows
+      .filter((r) => r.display_status === 'CLOSED')
+      .map((r) => {
+        const money = r.current_bid ?? r.opening_bid
+        return { id: r.id, title: r.item.title, cents: money.cents }
+      })
+    const max = rows.reduce((m, row) => Math.max(m, row.cents), 0)
+    return { chartRows: rows, chartMax: max }
+  }, [lotTab, lots.data?.items])
+
   if (!user || user.role !== 'SELLER') {
     return <p className="text-muted">Seller dashboard requires a seller account.</p>
   }
@@ -73,7 +87,9 @@ export function Seller() {
         ? counts?.live
         : t.key === 'SCHEDULED'
           ? counts?.scheduled
-          : counts?.ended
+          : t.key === 'ENDED'
+            ? counts?.ended
+            : counts?.cancelled
     return {
       key: t.key,
       label: n !== undefined ? `${t.label} (${n})` : t.label,
@@ -109,9 +125,9 @@ export function Seller() {
       showToast('Lot published. It goes live in about 5 minutes.')
       await qc.invalidateQueries({ queryKey: ['seller-lots'] })
     } catch (err) {
-      const message = err instanceof HttpError ? err.message : 'Create failed'
+      const message = httpErrorMessage(err, 'Create failed')
       setError(message)
-      showToast(message, 'danger')
+      showToast(message, httpErrorToastVariant(err))
     } finally {
       setPublishing(false)
     }
@@ -137,6 +153,27 @@ export function Seller() {
           </Banner>
         )}
         <TabNav tabs={tabLabels} active={lotTab} onChange={setLotTab} />
+        {lotTab === 'ENDED' && chartRows.length > 0 && chartMax > 0 && (
+          <Card className="space-y-3">
+            <h2 className="font-semibold text-text">Proceeds by lot</h2>
+            <ul className="space-y-3">
+              {chartRows.map((row) => (
+                <li key={row.id} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate text-text">{row.title}</span>
+                    <Money value={{ cents: row.cents, currency: 'USD' }} />
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-brand-soft">
+                    <div
+                      className="h-full rounded-full bg-brand"
+                      style={{ width: `${Math.round((row.cents / chartMax) * 100)}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         {lots.isLoading && <p className="text-muted">Loading…</p>}
         {lots.isError && <p className="text-danger">Could not load your lots.</p>}
         <ul className="flex flex-col gap-4">

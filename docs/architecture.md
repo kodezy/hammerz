@@ -20,6 +20,7 @@ backend/migrations/  Alembic (0001_init.py)
 frontend/src/
   app/                routes, session, query, theme
   pages/              one PascalCase word per route; TanStack Query lives here
+                      (includes public /lots/:id/audit)
   features/           HTTP clients for `/api/v1`
   components/         shared UI
   lib/                http, money, ws, types

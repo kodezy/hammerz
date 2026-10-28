@@ -152,7 +152,9 @@ export function Wallet() {
       )}
       <Card>
         <h2 className="mb-2 font-semibold text-text">Add funds</h2>
-        <p className="mb-4 text-sm text-muted">Credits are added to your available balance.</p>
+        <p className="mb-4 text-sm text-muted">
+          Credits are added to your available balance. No payment will be processed.
+        </p>
         <form onSubmit={onDeposit} className="max-w-xl space-y-4">
           <TextField
             label="Amount (USD)"

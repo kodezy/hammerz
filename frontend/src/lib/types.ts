@@ -14,6 +14,8 @@ export type Position =
   | 'CANCELLED'
 export type Money = { cents: number; currency: 'USD' }
 
+export type AuditStatus = 'VERIFIED' | 'TAMPERED' | 'UNVERIFIABLE'
+
 export type User = { id: string; email: string; role: Role }
 
 export type ApiError = { code: string; message: string; request_id?: string }

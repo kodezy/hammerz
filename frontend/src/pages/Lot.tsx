@@ -26,7 +26,7 @@ import {
   minimumBidLine,
 } from '../lib/lotCopy'
 import { sellerCanCancel } from '../lib/display'
-import { HttpError } from '../lib/http'
+import { HttpError, httpErrorMessage, httpErrorToastVariant } from '../lib/http'
 import { parseDollarsToCents } from '../lib/money'
 import { clearPending, listPending, savePending } from '../lib/pending'
 import { formatBidTimestamp, formatEndsLine } from '../lib/time'
@@ -71,6 +71,7 @@ export function Lot() {
   const [amount, setAmount] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [cancelPending, setCancelPending] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [showCancel, setShowCancel] = useState(false)
   const [wsConnected, setWsConnected] = useState(true)
@@ -96,18 +97,50 @@ export function Lot() {
   }, [id, refreshLot])
 
   useEffect(() => {
-    if (!user || user.role !== 'BIDDER') return
+    if (!user) return
     const records = listPending(user.id).filter((r) => r.path.includes(`/auctions/${id}/`))
     if (records.length === 0) return
-    const rec = records[0]
-    if (rec.method === 'POST' && rec.path.endsWith('/bids') && rec.body && typeof rec.body === 'object') {
-      const body = rec.body as { amount_cents?: number }
-      if (body.amount_cents) {
-        setPending(true)
-        placeBid(id, body.amount_cents, rec.key)
+
+    if (user.role === 'BIDDER') {
+      const rec = records.find((r) => r.method === 'POST' && r.path.endsWith('/bids'))
+      if (rec?.body && typeof rec.body === 'object') {
+        const body = rec.body as { amount_cents?: number }
+        if (body.amount_cents) {
+          setPending(true)
+          placeBid(id, body.amount_cents, rec.key)
+            .then(() => {
+              clearPending(user.id, rec.key)
+              showToast('Bid placed')
+              refreshLot()
+            })
+            .catch((err) => {
+              if (err instanceof HttpError && err.status === 202) {
+                setError('Confirmation pending')
+                showToast('Confirmation pending', 'warning')
+                return
+              }
+              const message = httpErrorMessage(err, 'Bid failed')
+              setError(message)
+              showToast(message, httpErrorToastVariant(err))
+            })
+            .finally(() => setPending(false))
+        }
+      }
+    }
+
+    if (user.role === 'SELLER') {
+      const rec = records.find((r) => r.method === 'POST' && r.path.endsWith('/cancel'))
+      if (rec) {
+        const body =
+          rec.body && typeof rec.body === 'object'
+            ? (rec.body as { reason?: string | null })
+            : { reason: null }
+        setCancelPending(true)
+        cancelLot(id, body.reason ?? null, rec.key)
           .then(() => {
             clearPending(user.id, rec.key)
-            showToast('Bid placed')
+            setShowCancel(false)
+            showToast('Lot cancelled')
             refreshLot()
           })
           .catch((err) => {
@@ -116,11 +149,11 @@ export function Lot() {
               showToast('Confirmation pending', 'warning')
               return
             }
-            const message = err instanceof HttpError ? err.message : 'Bid failed'
+            const message = httpErrorMessage(err, 'Cancel failed')
             setError(message)
-            showToast(message, 'danger')
+            showToast(message, httpErrorToastVariant(err))
           })
-          .finally(() => setPending(false))
+          .finally(() => setCancelPending(false))
       }
     }
   }, [id, user, refreshLot, showToast])
@@ -162,9 +195,9 @@ export function Lot() {
         setError('Confirmation pending')
         showToast('Confirmation pending', 'warning')
       } else {
-        const message = err instanceof HttpError ? err.message : 'Bid failed'
+        const message = httpErrorMessage(err, 'Bid failed')
         setError(message)
-        showToast(message, 'danger')
+        showToast(message, httpErrorToastVariant(err))
       }
     } finally {
       setPending(false)
@@ -195,15 +228,33 @@ export function Lot() {
       return
     }
     const key = crypto.randomUUID()
+    const reason = cancelReason || null
+    savePending(user.id, {
+      key,
+      method: 'POST',
+      path: `/auctions/${id}/cancel`,
+      body: { reason },
+      actorId: user.id,
+      createdAt: new Date().toISOString(),
+    })
+    setCancelPending(true)
     try {
-      await cancelLot(id, cancelReason || null, key)
+      await cancelLot(id, reason, key)
+      clearPending(user.id, key)
       setShowCancel(false)
       showToast('Lot cancelled')
       refreshLot()
     } catch (err) {
-      const message = err instanceof HttpError ? err.message : 'Cancel failed'
-      setError(message)
-      showToast(message, 'danger')
+      if (err instanceof HttpError && err.status === 202) {
+        setError('Confirmation pending')
+        showToast('Confirmation pending', 'warning')
+      } else {
+        const message = httpErrorMessage(err, 'Cancel failed')
+        setError(message)
+        showToast(message, httpErrorToastVariant(err))
+      }
+    } finally {
+      setCancelPending(false)
     }
   }
 
@@ -391,14 +442,30 @@ export function Lot() {
                     >
                       Keep auction live
                     </Button>
-                    <Button type="button" variant="danger" className="flex-1" onClick={onCancel}>
-                      Cancel lot
+                    <Button
+                      type="button"
+                      variant="danger"
+                      className="flex-1"
+                      onClick={onCancel}
+                      disabled={cancelPending}
+                    >
+                      {cancelPending ? 'Cancelling…' : 'Cancel lot'}
                     </Button>
                   </div>
                 </div>
               )}
             </div>
           )}
+          <div className="space-y-2 border-t border-border pt-3">
+            <ButtonLink to={`/lots/${id}/audit`} className="w-full">
+              View public audit
+            </ButtonLink>
+            {typeof a.receipt_id === 'string' && (
+              <ButtonLink to={`/receipts/${a.receipt_id}`} variant="secondary" className="w-full">
+                View receipt
+              </ButtonLink>
+            )}
+          </div>
         </Card>
       </div>
       {!cancelled && (

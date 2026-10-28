@@ -59,3 +59,17 @@ export async function api<T>(
   }
   return data as T
 }
+
+const AUDIT_UNAVAILABLE_MESSAGE =
+  'Temporarily unavailable while audit evidence is checked.'
+
+export function httpErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof HttpError && err.code === 'AUDIT_UNAVAILABLE') {
+    return AUDIT_UNAVAILABLE_MESSAGE
+  }
+  return err instanceof HttpError ? err.message : fallback
+}
+
+export function httpErrorToastVariant(err: unknown): 'warning' | 'danger' {
+  return err instanceof HttpError && err.code === 'AUDIT_UNAVAILABLE' ? 'warning' : 'danger'
+}

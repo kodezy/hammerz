@@ -1,5 +1,5 @@
 import { api } from '../lib/http'
-import type { DisplayStatus, Money, Position } from '../lib/types'
+import type { AuditStatus, DisplayStatus, Money, Position } from '../lib/types'
 
 export type AuctionSummary = {
   id: string
@@ -93,4 +93,27 @@ export async function sellerAuctions(status = 'ALL') {
     total_received_cents: number
     counts?: { live: number; scheduled: number; cancelled: number; ended: number }
   }>(`/seller/auctions?status=${status}&limit=20`)
+}
+
+export type AuditEventRow = {
+  sequence: number
+  type: string
+  payload: Record<string, unknown>
+}
+
+export type AuditVerification = {
+  status: AuditStatus
+  reason_codes: string[]
+  checked_at: string
+  last_committed_seq: number | null
+}
+
+export async function getAudit(auctionId: string, beforeSequence?: number) {
+  const qs = new URLSearchParams({ limit: '20' })
+  if (beforeSequence !== undefined) qs.set('before_sequence', String(beforeSequence))
+  return api<{
+    items: AuditEventRow[]
+    bid_count: number
+    verification: AuditVerification
+  }>(`/auctions/${auctionId}/audit?${qs}`)
 }
