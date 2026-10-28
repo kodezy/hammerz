@@ -1,8 +1,8 @@
 # Hammerz — specification
 
-[README.md](README.md) (run and demo) · [docs/architecture.md](docs/architecture.md) (journal, ops) · [AGENTS.md](AGENTS.md)
+[README.md](README.md) · [docs/architecture.md](docs/architecture.md) · [AGENTS.md](AGENTS.md)
 
-Product and HTTP contract for the simulated auction MVP. No real payments.
+Product and HTTP contract. Wallets are simulated; no real payments.
 
 ## Scope
 
@@ -132,6 +132,6 @@ Public `/ws/auctions/{auction_id}` after DB commit and journal COMMIT. Bids only
 
 Search and object fetch use the [Met Collection API](https://metmuseum.github.io/) during seller import; published lots use local `catalog_items` snapshots. Met outage must not break existing vitrine, rooms, audit, or receipts.
 
-## Demo seed
+## Seed
 
 `seed-demo` (optional `--ensure-live`). Idempotent. Credentials: [README.md](README.md).

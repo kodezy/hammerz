@@ -1,14 +1,8 @@
 # Hammerz
 
-Simulated live auctions: Met catalog lots, USD wallets, WebSocket bidding, settlement receipts, and a tamper-evident audit journal. Ledger-only money (no payment processor).
+Simulated live auctions: lots from [The Met Collection API](https://metmuseum.github.io/), USD wallets, WebSocket bidding, settlement receipts, and a tamper-evident audit journal. Deposits and payouts are ledger entries only — no payment processor.
 
-## Live demo
-
-After deploy, set your public URL here (example shape):
-
-
-
-Local development: **http://localhost** (HTTP only).
+Local: **http://localhost** (HTTP). Production hostname is `SITE_ADDRESS` (HTTPS via Caddy).
 
 ## Quick start
 
@@ -21,21 +15,11 @@ docker compose exec backend seed-demo
 docker compose exec backend seed-demo --ensure-live
 ```
 
-Migrations run on backend startup. `seed-demo` is idempotent. `--ensure-live` adds a live lot when none exists.
+Migrations run on backend startup. `seed-demo` is idempotent (does not reset passwords, balances, or history). `--ensure-live` creates a live lot only when none exists.
 
-### Public deploy (HTTPS + WSS)
+## Accounts
 
-1. Point DNS at your server.
-2. In `.env`, set secrets and `CORS_ORIGINS=https://your-public-origin` (exact origin, no trailing slash).
-3. Export `SITE_ADDRESS=your-public-hostname` for Compose (see `.env.example`).
-4. `docker compose up --build -d`, then run both seed commands.
-5. From an external network: HTTPS, login, bid, WebSocket updates, audit and receipt pages.
-
-Caddy uses Automatic HTTPS when `SITE_ADDRESS` is a public hostname (not `:80`).
-
-## Demo accounts
-
-Not shown in the app. Use after `seed-demo`.
+Credentials are not shown in the app.
 
 | Email | Password | Role |
 | --- | --- | --- |
@@ -43,15 +27,9 @@ Not shown in the app. Use after `seed-demo`.
 | `bidder1@hammerz.test` | `Bidder1-Demo-2026!` | Bidder |
 | `bidder2@hammerz.test` | `Bidder2-Demo-2026!` | Bidder |
 
-On a **fresh** database, bidder1 has $1,500 committed after seed (live lot with two bids). Sample settled, scheduled, and cancelled lots are included. Bidding and deposits change balances normally.
+After a **fresh** seed: seller $0; each bidder $10,000 total; bidder1 has $1,500 committed on the live lot (opening $1,000, increment $50; bids $1,000 then $1,500). Seed also includes a settled, a scheduled, and a cancelled lot. Further deposits and bids change wallets through the app.
 
-| Account | Total | Committed | Available |
-| --- | --- | --- | --- |
-| seller | $0.00 | $0.00 | $0.00 |
-| bidder1 | $10,000.00 | $1,500.00 | $8,500.00 |
-| bidder2 | $10,000.00 | $0.00 | $10,000.00 |
-
-Smoke test: seller → **Dashboard** / **New lot**; bidder → **Auctions** → live lot → bid; **Wallet** and **Bids**.
+Seller: **Dashboard** → lots / **New lot**. Bidder: **Auctions** → live lot → bid; **Wallet** and **Bids**.
 
 ## Routes
 
@@ -66,11 +44,37 @@ Smoke test: seller → **Dashboard** / **New lot**; bidder → **Auctions** → 
 | `/lots/:id/audit` | Public integrity check |
 | `/receipts/:id` | Settlement receipt |
 
-**Docs:** product and API — [SPEC.md](SPEC.md); code map, journal, backup, tamper demo — [docs/architecture.md](docs/architecture.md); agent commands — [AGENTS.md](AGENTS.md).
+Rules and API: [SPEC.md](SPEC.md). Journal, backup, tamper check: [docs/architecture.md](docs/architecture.md).
+
+## Stack
+
+React (Vite, TypeScript, Tailwind), TanStack Query, FastAPI, PostgreSQL 16, SQLAlchemy 2, Alembic, Caddy, Docker Compose. One API worker. Audit journal is JSONL on `audit_data`, not in Postgres.
+
+## Money and bidding
+
+Integer USD cents only. Anti-snipe: a bid in the last 120 seconds extends `ends_at` by 2 minutes from the previous end. Cancel with bids requires a public reason (10–500 characters after trim). Bid, deposit, and cancel require `Idempotency-Key` (UUID).
+
+## Audit and operations
+
+HMAC-chained append-only journal: PREPARE (fsync) before Postgres commit; COMMIT or ABORT after a known DB outcome. Public `/lots/:id/audit` recomputes verification (no cached seal). Pending PREPARE after a crash blocks audited writes until an operator resolves it — there is no auto-ABORT from missing rows.
+
+Restore `postgres_data` and `audit_data` together with the same secrets. Do not pair an old database with an empty journal. Avoid `docker compose down -v` on a running install.
+
+Tamper check and crash behavior: [docs/architecture.md](docs/architecture.md).
+
+## Deploy
+
+1. DNS for the public hostname → the host.
+2. `.env`: secrets; `CORS_ORIGINS` = exact HTTPS origin (no trailing slash).
+3. `SITE_ADDRESS` = that hostname (see `.env.example`). Unset keeps local HTTP on port 80.
+4. `docker compose up --build -d`, then both seed commands.
+5. Confirm from outside the LAN: HTTPS, login, bid, WebSocket, audit and receipt pages, and a **Live** lot.
+
+Caddy Automatic HTTPS applies when `SITE_ADDRESS` is a public hostname.
 
 ## Limitations
 
-No password reset, seller self-registration, or real payments. Vitrine title filter is client-side on the current tab only (up to 20 lots).
+No password reset, seller self-registration, or real payments. Vitrine title filter is client-side on the current tab (up to 20 lots).
 
 ## Development
 
@@ -89,5 +93,3 @@ uv run ruff format . && uv run ruff check . && uv run pytest -q
 cd frontend && npm ci && npm run test && npm run build
 cd frontend && npm run dev
 ```
-
-
