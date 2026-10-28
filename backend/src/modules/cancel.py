@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from src.core.config import get_settings
 from src.core.errors import AppError, ErrorCode
 from src.db.tables import Auction, Bid, Event, Key, Ledger, User, Wallet
+from src.modules import auctions as auctions_module
 from src.modules import audit as audit_module
 from src.modules.alias import display_alias
 from src.modules.journal import Journal
@@ -93,7 +94,7 @@ async def cancel_auction(
             if auction.seller_id != seller_id:
                 raise AppError(403, ErrorCode.FORBIDDEN, "Not auction owner")
             if auction.status == "CANCELLED":
-                response = {"auction_id": str(auction_id), "status": "CANCELLED"}
+                snap = auctions_module.get_auction(session, auction_id)
                 session.add(
                     Key(
                         actor_id=seller_id,
@@ -101,7 +102,7 @@ async def cancel_auction(
                         fingerprint=fingerprint,
                         operation_id=operation_id,
                         status_code=200,
-                        response_json=response,
+                        response_json=snap,
                     )
                 )
                 session.commit()
@@ -190,7 +191,8 @@ async def cancel_auction(
                 event_hash=event_hash,
             )
 
-            response = {"auction_id": str(auction_id), "status": "CANCELLED"}
+            session.refresh(auction)
+            snap = auctions_module.get_auction(session, auction_id)
             session.add(
                 Key(
                     actor_id=seller_id,
@@ -198,7 +200,7 @@ async def cancel_auction(
                     fingerprint=fingerprint,
                     operation_id=operation_id,
                     status_code=200,
-                    response_json=response,
+                    response_json=snap,
                 )
             )
             session.commit()

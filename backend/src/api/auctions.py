@@ -4,13 +4,14 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_optional_user, parse_idempotency_key, require_bidder, require_seller
 from src.core.canon import request_fingerprint
 from src.core.money import MoneyCents
 from src.db.session import get_db
-from src.db.tables import User
+from src.db.tables import Bid, Key, User
 from src.modules import auctions as auctions_module
 from src.modules import audit as audit_module
 from src.modules import bids as bids_module
@@ -136,19 +137,23 @@ async def cancel_auction_route(
     auction = await cancel_module.cancel_auction(
         session, journal, seller.id, auction_id, body.reason, idempotency_key, fingerprint
     )
+    stored = session.scalar(select(Key).where(Key.actor_id == seller.id, Key.idempotency_key == idempotency_key))
+    if stored and stored.response_json:
+        body_out = stored.response_json
+    else:
+        body_out = auctions_module.get_auction(session, auction.id)
     hub = request.app.state.hub
-    snap = auctions_module.get_auction(session, auction_id)
     await hub.publish(
         str(auction_id),
         {
             "auction_id": str(auction_id),
-            "server_time": snap["server_time"],
-            "snapshot": snap,
+            "server_time": body_out["server_time"],
+            "snapshot": body_out,
             "type": "auction.cancelled",
-            "version": snap["version"],
+            "version": body_out["version"],
         },
     )
-    return auctions_module.get_auction(session, auction.id)
+    return body_out
 
 
 @router.get("/{auction_id}/bids")
@@ -178,9 +183,5 @@ def audit_route(
     events = audit_module.list_audit_events(
         session, auction_id, before_sequence=before_sequence, after_sequence=after_sequence, limit=limit
     )
-    from sqlalchemy import func, select
-
-    from src.db.tables import Bid
-
     bid_count = session.scalar(select(func.count()).select_from(Bid).where(Bid.auction_id == auction_id)) or 0
     return {**events, "bid_count": int(bid_count), "verification": summary}

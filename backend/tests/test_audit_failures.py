@@ -2,14 +2,16 @@ import uuid
 
 from sqlalchemy import select, text
 
-from src.db.tables import Bid, User
+from src.db.tables import Bid
 from tests.test_bids import _bid, _deposit, _make_live_auction
 
 
-def test_audit_tampered_extra_bid_row(client, db_session, seller_token, bidder_token, respx_mock):
+def test_audit_tampered_extra_bid_row(client, db_session, seller_token, bidder_token, bidder2_token, respx_mock):
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 50_000)
     _bid(client, bidder_token, aid, 10_000)
+    from src.db.tables import User
+
     bidder2 = db_session.scalar(select(User).where(User.email == "bidder2@hammerz.test"))
     assert bidder2 is not None
     db_session.add(
@@ -34,7 +36,12 @@ def test_audit_tampered_deleted_bid_row(client, db_session, seller_token, bidder
     aid = _make_live_auction(client, db_session, seller_token, respx_mock)
     _deposit(client, bidder_token, 50_000)
     _bid(client, bidder_token, aid, 10_000)
-    db_session.execute(text("DELETE FROM bids WHERE auction_id = :aid"), {"aid": uuid.UUID(aid)})
+    aid_uuid = uuid.UUID(aid)
+    db_session.execute(
+        text("UPDATE audit_events SET bid_id = NULL WHERE auction_id = :aid AND type = 'BID_ACCEPTED'"),
+        {"aid": aid_uuid},
+    )
+    db_session.execute(text("DELETE FROM bids WHERE auction_id = :aid"), {"aid": aid_uuid})
     db_session.commit()
 
     body = client.get(f"/api/v1/auctions/{aid}/audit").json()
