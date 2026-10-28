@@ -16,7 +16,7 @@ backend/src/
   core/               config, errors, money, canon, security, limits
   db/                 SQLAlchemy 2 tables + session (psycopg3, sync)
   realtime/hub.py     in-process WebSocket fan-out after COMMIT
-backend/migrations/  Alembic (0001_init.py)
+backend/migrations/  Alembic (0001_init, 0002_refresh, …)
 frontend/src/
   app/                routes, session, query, theme
   pages/              one PascalCase word per route; TanStack Query lives here
@@ -52,6 +52,14 @@ Integer USD cents everywhere (`MoneyCents` / `StrictInt` on write paths). Clocks
 
 Audited mutations lock journal first, then auction `FOR UPDATE`, then wallets by ascending UUID. Deposits lock the wallet only.
 
+## Operations
+
+**Backup:** restore `postgres_data` and `audit_data` with the same secrets. Do not pair an old database with an empty journal.
+
+**Tamper check (disposable DB):** `/lots/:id/audit` should show **VERIFIED** on a seeded lot. After `UPDATE bids SET amount_cents = amount_cents + 1 WHERE auction_id = '<uuid>';`, expect **TAMPERED** on audit and receipt banners.
+
+**Pending journal:** PREPARE without a durable COMMIT/ABORT after restart blocks audited writes until admin resolution; retry clients use the same `Idempotency-Key` on `202 OPERATION_PENDING`.
+
 ## Verification
 
 Architecture checks: none.
@@ -60,7 +68,7 @@ Fast check: `cd backend && uv run ruff format . && uv run ruff check .`
 
 Tests: `cd backend && uv run pytest -q` (real PostgreSQL 16; `DATABASE_URL` as in CI).
 
-SPA: `cd frontend && npm run build`
+SPA: `cd frontend && npm run test && npm run build`
 
 ## Freshness
 

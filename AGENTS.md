@@ -36,9 +36,9 @@ Fast validation: `cd backend && uv run ruff format . && uv run ruff check .`
 
 Full backend tests: `cd backend && uv run pytest -q`
 
-Frontend: `cd frontend && npm ci && npm run lint && npm run build`
+Frontend: `cd frontend && npm ci && npm run test && npm run lint && npm run build`
 
-Architecture checks: none — see `docs/architecture.md`.
+Architecture checks: none — see `docs/architecture.md` (journal, backup, tamper demo).
 
 Do not seed on API startup. Seed is `docker compose exec backend seed-demo` only.
 
@@ -56,7 +56,7 @@ Do not seed on API startup. Seed is `docker compose exec backend seed-demo` only
 - Catalog HTTP happens before the short create transaction. Met is the catalog source; snapshot fields stay in `catalog_items`.
 - Sellers are provisioned by seed (`auth.provision`), not public register.
 
-Enforced by CI: `ruff format --check`, `ruff check`, and `pytest` (backend); `npm run build` (tsc + Vite). Frontend `oxlint` is local-only.
+Enforced by CI: `ruff format --check`, `ruff check`, and `pytest` (backend); `npm run test` and `npm run build` (frontend). Frontend `oxlint` is local-only.
 
 ## Context routing
 
