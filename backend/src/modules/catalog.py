@@ -102,7 +102,7 @@ async def search_catalog(q: str, offset: int, limit: int) -> dict[str, Any]:
     return result
 
 
-# Used when the live Met API is unreachable (e.g. demo seed in Docker).
+# Fallback snapshots when Met is unreachable (seed / offline create).
 _DEMO_OBJECT_SNAPSHOTS: dict[int, dict[str, Any]] = {
     436535: {
         "artist": "Vincent van Gogh",

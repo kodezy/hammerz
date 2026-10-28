@@ -1,4 +1,3 @@
-# Unset SITE_ADDRESS → listen on :80. Production: SITE_ADDRESS=<public-hostname>
 {$SITE_ADDRESS::80} {
 	@api path /api/*
 	@ws path /ws/*

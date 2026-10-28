@@ -1,4 +1,4 @@
-"""Demo data seed — idempotent provisioning via domain services."""
+"""Idempotent seed for seller, bidders, and sample lots."""
 
 import argparse
 import asyncio

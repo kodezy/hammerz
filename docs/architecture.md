@@ -1,7 +1,5 @@
 # Architecture
 
-Hammerz is a simulated live-auction platform: USD wallets, Met catalog lots, concurrent bidding with anti-snipe, settlement receipts, and a tamper-evident HMAC journal. Deposits and payouts are ledger entries only — no payment processor.
-
 ## System map
 
 ```
