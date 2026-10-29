@@ -1,19 +1,42 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { AuctionListRow } from '../components/AuctionListRow'
+import { EmptyState } from '../components/EmptyState'
 import { MarketingHero } from '../components/MarketingHero'
 import { TabNav } from '../components/TabNav'
 import { TextField } from '../components/TextField'
 import { listAuctions } from '../features/lots'
 
-const tabs: { key: 'LIVE' | 'SCHEDULED' | 'ENDED'; label: string }[] = [
+type HomeTab = 'LIVE' | 'SCHEDULED' | 'ENDED'
+
+const tabs: { key: HomeTab; label: string }[] = [
   { key: 'LIVE', label: 'Live' },
   { key: 'SCHEDULED', label: 'Upcoming' },
   { key: 'ENDED', label: 'Ended' },
 ]
 
+function emptyCopy(tab: HomeTab): { title: string; body: string } {
+  switch (tab) {
+    case 'LIVE':
+      return {
+        title: 'No live auctions',
+        body: 'Nothing is open for bidding right now. Upcoming lots appear before they go live.',
+      }
+    case 'SCHEDULED':
+      return {
+        title: 'Nothing upcoming',
+        body: 'Scheduled lots show up here before they open for bids.',
+      }
+    case 'ENDED':
+      return {
+        title: 'No ended auctions',
+        body: 'Settled lots will appear here after they close.',
+      }
+  }
+}
+
 export function Home() {
-  const [tab, setTab] = useState<'LIVE' | 'SCHEDULED' | 'ENDED'>('LIVE')
+  const [tab, setTab] = useState<HomeTab>('LIVE')
   const [filter, setFilter] = useState('')
   const q = useQuery({
     queryKey: ['auctions', tab],
@@ -35,6 +58,9 @@ export function Home() {
   })
 
   const needle = filter.trim().toLowerCase()
+  const empty = needle
+    ? { title: 'No matching lots', body: 'Nothing on this tab matches that title.' }
+    : emptyCopy(tab)
   const visibleItems = useMemo(() => {
     const items = q.data?.items ?? []
     if (!needle) return items
@@ -54,8 +80,8 @@ export function Home() {
         <TabNav tabs={tabLabels} active={tab} onChange={setTab} />
         {q.isLoading && <p className="text-muted">Loading…</p>}
         {q.isError && <p className="text-danger">Could not load auctions.</p>}
-        {!q.isLoading && !q.isError && visibleItems.length === 0 && needle && (
-          <p className="text-muted">No lots match your search on this tab.</p>
+        {!q.isLoading && !q.isError && visibleItems.length === 0 && (
+          <EmptyState title={empty.title}>{empty.body}</EmptyState>
         )}
         <ul className="flex flex-col gap-4">
           {visibleItems.map((a) => {

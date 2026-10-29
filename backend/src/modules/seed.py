@@ -3,7 +3,7 @@
 import argparse
 import asyncio
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 
@@ -129,12 +129,12 @@ async def run_seed(*, ensure_live: bool = False) -> None:
                 session, journal, bidder.id, auction_id, amount, uuid.uuid5(SEED_KEY_NS, f"{label}-bid:{i}"), fp
             )
 
-    now = datetime.now(UTC)
+    # Window offsets from DB time — bids use clock_timestamp(); Python wall clock must not diverge.
     windows = [
-        (436535, 100_000, 5_000, now - timedelta(minutes=1), now + timedelta(minutes=45), "eval_live"),
-        (436532, 230_000, 5_000, now - timedelta(hours=2), now - timedelta(minutes=10), "settled"),
-        (436532, 100_000, 5_000, now + timedelta(hours=2), now + timedelta(hours=4), "future"),
-        (436535, 100_000, 5_000, now - timedelta(minutes=30), now + timedelta(hours=1), "cancel"),
+        (436535, 100_000, 5_000, timedelta(minutes=-1), timedelta(minutes=45), "eval_live"),
+        (436532, 230_000, 5_000, timedelta(hours=-2), timedelta(minutes=-10), "settled"),
+        (436532, 100_000, 5_000, timedelta(hours=2), timedelta(hours=4), "future"),
+        (436535, 100_000, 5_000, timedelta(minutes=-30), timedelta(hours=1), "cancel"),
     ]
 
     with get_session_factory()() as session:
@@ -147,7 +147,10 @@ async def run_seed(*, ensure_live: bool = False) -> None:
         if (session.scalar(select(func.count()).select_from(Auction)) or 0) >= 4:
             pass
         else:
-            for met_id, opening, increment, starts, ends, kind in windows:
+            for met_id, opening, increment, start_off, end_off, kind in windows:
+                tick = auctions_module._db_now(session)
+                starts = tick + start_off
+                ends = tick + end_off
                 defer_window = kind == "settled"
                 auction = await _create_auction_window(
                     session,

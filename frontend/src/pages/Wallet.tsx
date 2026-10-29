@@ -11,7 +11,7 @@ import { PageHeading } from '../components/PageHeading'
 import { TextField } from '../components/TextField'
 import { deposit, getWallet } from '../features/wallet'
 import { lotListingTitle } from '../lib/lotCopy'
-import { HttpError } from '../lib/http'
+import { httpErrorMessage } from '../lib/http'
 import { parseDollarsToCents } from '../lib/money'
 import { clearPending, listPending, savePending } from '../lib/pending'
 
@@ -38,11 +38,7 @@ export function Wallet() {
         qc.invalidateQueries({ queryKey: ['wallet'] })
       })
       .catch((err) => {
-        if (err instanceof HttpError && (err.status === 202 || err.code === 'OPERATION_PENDING')) {
-          setError('Confirmation pending')
-          return
-        }
-        setError(err instanceof HttpError ? err.message : 'Deposit failed')
+        setError(httpErrorMessage(err, 'Deposit failed'))
       })
       .finally(() => setPending(false))
   }, [user, qc, showToast])
@@ -77,14 +73,7 @@ export function Wallet() {
       setAmount('')
       await qc.invalidateQueries({ queryKey: ['wallet'] })
     } catch (err) {
-      if (
-        err instanceof HttpError &&
-        (err.status === 202 || err.code === 'OPERATION_PENDING')
-      ) {
-        setError('Confirmation pending')
-      } else {
-        setError(err instanceof HttpError ? err.message : 'Deposit failed')
-      }
+      setError(httpErrorMessage(err, 'Deposit failed'))
     } finally {
       setPending(false)
     }

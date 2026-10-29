@@ -53,51 +53,58 @@ function auctionsActive(pathname: string): boolean {
   return pathname === '/' || pathname.startsWith('/lots/')
 }
 
-export function Shell({ children }: { children: React.ReactNode }) {
-  const { user, logout, ready } = useSession()
-  const navigate = useNavigate()
+function AppNav({ className }: { className: string }) {
+  const { user } = useSession()
   const { pathname } = useLocation()
   const auctionsIsCurrent = auctionsActive(pathname)
 
   return (
+    <nav className={className}>
+      <Link to="/" className={navItemClass(auctionsIsCurrent)}>
+        Auctions
+      </Link>
+      {user?.role === 'BIDDER' && (
+        <>
+          <NavLink to="/bids" className={({ isActive }) => navItemClass(isActive)}>
+            Bids
+          </NavLink>
+          <NavLink to="/wallet" className={({ isActive }) => navItemClass(isActive)}>
+            Wallet
+          </NavLink>
+        </>
+      )}
+      {user?.role === 'SELLER' && (
+        <NavLink to="/seller" className={({ isActive }) => navItemClass(isActive)}>
+          Dashboard
+        </NavLink>
+      )}
+    </nav>
+  )
+}
+
+export function Shell({ children }: { children: React.ReactNode }) {
+  const { user, logout, ready } = useSession()
+  const navigate = useNavigate()
+
+  return (
     <div className="min-h-screen bg-bg">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/95 backdrop-blur-sm">
-        <div className={`flex h-[60px] items-stretch justify-between gap-4 ${shellInset}`}>
-          <div className="flex min-w-0 items-stretch gap-8 md:gap-14">
-            <Link
-              to="/"
-              className="flex shrink-0 items-center font-display text-[28px] font-normal leading-none text-text hover:opacity-90"
-            >
-              hammerz
-            </Link>
-            <nav className="flex min-w-0 items-stretch gap-6 md:gap-8">
-              <Link to="/" className={navItemClass(auctionsIsCurrent)}>
-                Auctions
-              </Link>
-              {user?.role === 'BIDDER' && (
-                <>
-                  <NavLink to="/bids" className={({ isActive }) => navItemClass(isActive)}>
-                    Bids
-                  </NavLink>
-                  <NavLink to="/wallet" className={({ isActive }) => navItemClass(isActive)}>
-                    Wallet
-                  </NavLink>
-                </>
-              )}
-              {user?.role === 'SELLER' && (
-                <NavLink to="/seller" className={({ isActive }) => navItemClass(isActive)}>
-                  Dashboard
-                </NavLink>
-              )}
-            </nav>
-          </div>
-          <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        <div
+          className={`flex flex-wrap items-center gap-x-3 md:h-[60px] md:flex-nowrap md:items-stretch md:gap-8 ${shellInset}`}
+        >
+          <Link
+            to="/"
+            className="flex h-14 shrink-0 items-center font-display text-[22px] font-normal leading-none text-text hover:opacity-90 md:h-auto md:text-[28px]"
+          >
+            hammerz
+          </Link>
+          <div className="ml-auto flex h-14 shrink-0 items-center gap-1 sm:gap-2 md:order-3 md:ml-0 md:h-auto">
             <ThemeToggle />
             {ready &&
               (user ? (
                 <Button
                   variant="secondary"
-                  className="h-10 px-4"
+                  className="h-10 px-3 sm:px-4"
                   onClick={() => {
                     logout()
                     navigate('/')
@@ -106,11 +113,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   Sign out
                 </Button>
               ) : (
-                <ButtonLink to="/login" variant="primary" className="h-10 min-w-[112px] px-5">
+                <ButtonLink to="/login" variant="primary" className="h-10 px-4 sm:min-w-[112px] sm:px-5">
                   Sign in
                 </ButtonLink>
               ))}
           </div>
+          <AppNav className="flex h-11 w-full items-stretch gap-5 overflow-x-auto md:h-auto md:w-auto md:flex-1 md:gap-8" />
         </div>
       </header>
       <main className={`${shellInset} py-10`}>{children}</main>

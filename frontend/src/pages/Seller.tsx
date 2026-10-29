@@ -7,6 +7,7 @@ import { Banner } from '../components/Banner'
 import { Button, ButtonLink } from '../components/Button'
 import { Card } from '../components/Card'
 import { CreateLotModal } from '../components/CreateLotModal'
+import { EmptyState } from '../components/EmptyState'
 import { Money } from '../components/Money'
 import { PageHeading } from '../components/PageHeading'
 import { TabNav } from '../components/TabNav'
@@ -33,16 +34,28 @@ const sellerTabs: { key: SellerTab; label: string }[] = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ]
 
-function emptyTabMessage(tab: SellerTab): string {
+function emptyTabCopy(tab: SellerTab): { title: string; body: string } {
   switch (tab) {
     case 'LIVE':
-      return 'No live lots right now. Check Upcoming or Ended for your listings.'
+      return {
+        title: 'No live lots',
+        body: 'Nothing is open for bidding. Check Upcoming for lots that have not started.',
+      }
     case 'SCHEDULED':
-      return 'No upcoming lots.'
+      return {
+        title: 'Nothing upcoming',
+        body: 'Lots you publish show up here before they go live.',
+      }
     case 'ENDED':
-      return 'No ended lots on this tab.'
+      return {
+        title: 'No ended lots',
+        body: 'Closed lots and their proceeds will appear here.',
+      }
     case 'CANCELLED':
-      return 'No cancelled lots on this tab.'
+      return {
+        title: 'No cancelled lots',
+        body: 'Lots you cancel will be listed here.',
+      }
   }
 }
 
@@ -77,6 +90,7 @@ export function Seller() {
   const counts = lots.data?.counts
   const items = lots.data?.items ?? []
   const showEmpty = !lots.isLoading && !lots.isError && items.length === 0
+  const empty = emptyTabCopy(lotTab)
 
   const tabLabels = sellerTabs.map((t) => {
     const n =
@@ -146,7 +160,7 @@ export function Seller() {
         )}
         {lots.isLoading && <p className="text-muted">Loading…</p>}
         {lots.isError && <p className="text-danger">Could not load your lots.</p>}
-        {showEmpty && <p className="text-muted">{emptyTabMessage(lotTab)}</p>}
+        {showEmpty && <EmptyState title={empty.title}>{empty.body}</EmptyState>}
         <ul className="flex flex-col gap-4">
           {items.map((row) => {
             const r = row as SellerRow

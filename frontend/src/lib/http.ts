@@ -32,6 +32,40 @@ export class HttpError extends Error {
   }
 }
 
+function isApiErrorBody(data: unknown): data is ApiError {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'code' in data &&
+    typeof (data as ApiError).code === 'string' &&
+    'message' in data &&
+    typeof (data as ApiError).message === 'string'
+  )
+}
+
+export function isPendingApiResponse(status: number, data: unknown): boolean {
+  if (status === 202) return true
+  return isApiErrorBody(data) && data.code === 'OPERATION_PENDING'
+}
+
+export function apiErrorBody(data: unknown, res: Response): ApiError {
+  if (isApiErrorBody(data)) return data
+  if (res.status === 202) {
+    return {
+      code: 'OPERATION_PENDING',
+      message: res.statusText || 'Operation pending',
+    }
+  }
+  return { code: 'UNKNOWN', message: res.statusText || 'Request failed' }
+}
+
+export function isOperationPending(err: unknown): boolean {
+  return (
+    err instanceof HttpError &&
+    (err.status === 202 || err.code === 'OPERATION_PENDING')
+  )
+}
+
 async function parseResponse(res: Response): Promise<{ data: unknown }> {
   const text = await res.text()
   let data: unknown = null
@@ -106,9 +140,8 @@ export async function api<T>(
     }
   }
 
-  if (!res.ok) {
-    const body = (data ?? { code: 'UNKNOWN', message: res.statusText }) as ApiError
-    throw new HttpError(res.status, body)
+  if (!res.ok || isPendingApiResponse(res.status, data)) {
+    throw new HttpError(res.status, apiErrorBody(data, res))
   }
   return data as T
 }
@@ -117,6 +150,7 @@ const AUDIT_UNAVAILABLE_MESSAGE =
   'Temporarily unavailable while audit evidence is checked.'
 
 export function httpErrorMessage(err: unknown, fallback: string): string {
+  if (isOperationPending(err)) return 'Confirmation pending'
   if (err instanceof HttpError && err.code === 'AUDIT_UNAVAILABLE') {
     return AUDIT_UNAVAILABLE_MESSAGE
   }

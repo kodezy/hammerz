@@ -26,7 +26,7 @@ import {
   minimumBidLine,
 } from '../lib/lotCopy'
 import { sellerCanCancel } from '../lib/display'
-import { HttpError, httpErrorMessage } from '../lib/http'
+import { httpErrorMessage } from '../lib/http'
 import { parseDollarsToCents } from '../lib/money'
 import { clearPending, listPending, savePending } from '../lib/pending'
 import { formatBidTimestamp, formatEndsLine } from '../lib/time'
@@ -112,10 +112,6 @@ export function Lot() {
               refreshLot()
             })
             .catch((err) => {
-              if (err instanceof HttpError && err.status === 202) {
-                setError('Confirmation pending')
-                return
-              }
               setError(httpErrorMessage(err, 'Bid failed'))
             })
             .finally(() => setPending(false))
@@ -138,10 +134,6 @@ export function Lot() {
             refreshLot()
           })
           .catch((err) => {
-            if (err instanceof HttpError && err.status === 202) {
-              setError('Confirmation pending')
-              return
-            }
             setError(httpErrorMessage(err, 'Cancel failed'))
           })
           .finally(() => setCancelPending(false))
@@ -180,11 +172,7 @@ export function Lot() {
       setAmount('')
       refreshLot()
     } catch (err) {
-      if (err instanceof HttpError && err.status === 202) {
-        setError('Confirmation pending')
-      } else {
-        setError(httpErrorMessage(err, 'Bid failed'))
-      }
+      setError(httpErrorMessage(err, 'Bid failed'))
     } finally {
       setPending(false)
     }
@@ -228,11 +216,7 @@ export function Lot() {
       setShowCancel(false)
       refreshLot()
     } catch (err) {
-      if (err instanceof HttpError && err.status === 202) {
-        setError('Confirmation pending')
-      } else {
-        setError(httpErrorMessage(err, 'Cancel failed'))
-      }
+      setError(httpErrorMessage(err, 'Cancel failed'))
     } finally {
       setCancelPending(false)
     }

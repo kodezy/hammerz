@@ -10,7 +10,7 @@ export function TabNav<T extends string>({
   onChange: (key: T) => void
 }) {
   return (
-    <div className="flex flex-wrap gap-8 border-b border-border">
+    <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border sm:gap-x-8">
       {tabs.map((t) => {
         const isActive = t.key === active
         return (
@@ -18,7 +18,7 @@ export function TabNav<T extends string>({
             key={t.key}
             type="button"
             onClick={() => onChange(t.key)}
-            className={`-mb-px border-b-2 pb-3 text-[15px] font-semibold transition-colors ${
+            className={`-mb-px shrink-0 border-b-2 pb-3 text-[15px] font-semibold whitespace-nowrap transition-colors ${
               isActive
                 ? 'border-brand text-text'
                 : 'border-transparent text-muted hover:text-text'

@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import logging
 import uuid
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
@@ -27,6 +28,7 @@ from src.modules.settle import close_due_auctions
 from src.realtime.hub import Hub
 
 _WS_CAP = 20
+logger = logging.getLogger(__name__)
 
 
 def _build_journal() -> Journal:
@@ -49,7 +51,7 @@ async def _settle_loop(application: FastAPI) -> None:
         try:
             await close_due_auctions(application.state.journal, application.state.hub)
         except Exception:
-            pass
+            logger.exception("close_due_auctions failed")
         await asyncio.sleep(settings.settle_interval_seconds)
 
 
