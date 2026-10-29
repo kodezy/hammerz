@@ -9,6 +9,8 @@ frontend/dist/
 .tmp/
 .ruff_cache/
 .superpowers/
+.cursor/
+.agents/
 
 # Local agent planning
 docs/superpowers/
